@@ -1,0 +1,23 @@
+# Main Application Versions
+
+# Common
+qbittorrent-release-5.1.4
+qt-v6.10.2
+openssl-openssl-3.6.1
+mimalloc-v3.2.8
+# Libtorrent V1
+libtorrent-v1-v1.2.20
+boost-v1-boost-1.86.0
+
+# Libtorrent V2
+libtorrent-v2-branch-163d36465fec31070c7717efb759507a177ec8a6
+boost-v2-boost-1.90.0
+
+# System Dependencies (Debian Sid)
+libc6-2.42-13
+libstdcpp6-15.2.0-13
+libgcc-s1-15.2.0-13
+zlib1g-1:1.3.dfsg+really1.3.1-3
+libzstd1-1.5.7+dfsg-3+b1
+ca-certificates-20260223
+gcc-4:15.2.0-5

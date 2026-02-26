@@ -1,0 +1,21 @@
+# Main Application Versions
+i2pd-2.58.0
+mimalloc-v3.2.7
+
+# Base Image (Distroless) Digest
+# This tracks the runtime environment updates
+distroless-sha256:7bf52a42660d287b2522a023c3b3d237d8bc61645b9f6d12193d7d3b2bf2b707
+
+# Build Dependencies (Debian Trixie)
+# These are used for static linking
+libboost-date-time1.88-dev-1.88.0-1
+libboost-filesystem1.88-dev-1.88.0-1
+libboost-iostreams1.88-dev-1.88.0-1
+libboost-program-options1.88-dev-1.88.0-1
+libboost-system1.88-dev-1.88.0-1
+libboost-thread1.88-dev-1.88.0-1
+libminiupnpc-dev-2.2.8-2+b2
+libssl-dev-3.5.4-1~deb13u1
+libstdc++-14-dev-14.2.0-19
+libzstd-dev-1.5.7+dfsg-1
+zlib1g-dev-1:1.3.dfsg+really1.3.1-1+b1

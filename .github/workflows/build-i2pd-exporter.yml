@@ -1,0 +1,167 @@
+name: Build and Publish i2pd-exporter
+
+on:
+  push:
+    paths:
+      - 'i2pd-exporter/**'
+      - '.github/workflows/build-i2pd-exporter.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at 0 AM UTC
+
+permissions:
+  contents: write
+  packages: write
+
+defaults:
+  run:
+    working-directory: ./i2pd-exporter
+
+jobs:
+  check-base-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check_changes.outputs.changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+      - name: Check package versions
+        run: |
+          docker pull alpine:latest
+          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk add --simulate build-base git rust cargo" | \
+          sed -n 's/^.* Installing \([^ ]*\) (\([^)]*\)).*/\1-\2/p' | \
+          grep -E '^(rust|cargo)-' | sort > current-packages.txt
+      - name: Compare with stored package list
+        id: check_changes
+        run: |
+          if [ ! -f package-versions.txt ]; then
+            echo "package-versions.txt does not exist, treating as changed"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            grep -vE "^(i2pd-exporter-|#|cargo-lock-)" package-versions.txt | grep -v "^$" | sort > stored-packages.txt
+            if ! cmp -s stored-packages.txt current-packages.txt; then
+              echo "Package list has changed."
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "Package list has not changed."
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  check-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version_detected: ${{ steps.check.outputs.new_version_detected }}
+      latest_tag: ${{ steps.get_latest_release.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Get latest i2pd-exporter tag
+        id: get_latest_release
+        run: |
+          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/Jercik/i2pd-exporter.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+      - name: Get current version from package-versions.txt
+        id: get_current_version
+        run: |
+          echo "version=$(grep "^i2pd-exporter-" package-versions.txt | cut -d- -f3)" >> $GITHUB_OUTPUT
+      - name: Check for new version
+        id: check
+        run: |
+          if [[ "${{ steps.get_latest_release.outputs.tag }}" != "" && "${{ steps.get_latest_release.outputs.tag }}" != "${{ steps.get_current_version.outputs.version }}" ]]; then
+            echo "New app version detected."
+            echo "new_version_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_version_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-images:
+    needs: [check-base-packages, check-versions]
+    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            tag_suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            tag_suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push i2pd-exporter (${{ matrix.tag_suffix }})
+        uses: docker/build-push-action@v5
+        with:
+          context: ./i2pd-exporter
+          file: ./i2pd-exporter/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          build-args: |
+            APP_VERSION=${{ needs.check-versions.outputs.latest_tag }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/i2pd-exporter:${{ matrix.tag_suffix }}
+          cache-from: type=gha,scope=build-${{ matrix.tag_suffix }}
+          cache-to: type=gha,mode=min,scope=build-${{ matrix.tag_suffix }}
+
+  merge-tags:
+    needs: [build-images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest
+        run: |
+          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/i2pd-exporter:latest \
+            ghcr.io/${{ github.repository_owner }}/i2pd-exporter:amd64 \
+            ghcr.io/${{ github.repository_owner }}/i2pd-exporter:arm64
+
+  update-repo:
+    needs: [check-base-packages, check-versions, build-images, merge-tags]
+    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update version and package files and commit
+        run: |
+          LATEST_APP="${{ needs.check-versions.outputs.latest_tag }}"
+          
+          echo "# Main Application Versions" > package-versions.txt
+          echo "i2pd-exporter-${LATEST_APP}" >> package-versions.txt
+          
+          echo "# Build Dependencies (Alpine Latest)" >> package-versions.txt
+          echo "# Only critical build deps: rust, cargo" >> package-versions.txt
+          
+          # Use optimized check to get current package versions
+          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk add --simulate build-base git rust cargo" | \
+          sed -n 's/^.* Installing \([^ ]*\) (\([^)]*\)).*/\1-\2/p' | \
+          grep -E '^(rust|cargo)-' | sort >> package-versions.txt
+          
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package-versions.txt
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: Update i2pd-exporter version and package list"
+            git pull --rebase
+            git push
+          fi
