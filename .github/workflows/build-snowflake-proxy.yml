@@ -1,0 +1,179 @@
+name: Build and Publish Snowflake Proxy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at 0 AM UTC
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./snowflake-proxy
+    outputs:
+      new_version_detected: ${{ steps.check.outputs.new_version_detected }}
+      snowflake_sha: ${{ steps.get_snowflake.outputs.sha }}
+      tor_geoipdb_ver: ${{ steps.get_pkgs.outputs.tor_geoipdb }}
+      ca_certs_ver: ${{ steps.get_pkgs.outputs.ca_certs }}
+      golang_ver: ${{ steps.get_pkgs.outputs.golang }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest Snowflake HEAD commit
+        id: get_snowflake
+        run: |
+          SHA=$(git ls-remote https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git HEAD | awk '{print $1}')
+          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+
+      - name: Get Debian package versions
+        id: get_pkgs
+        run: |
+          docker pull debian:trixie-slim
+          OUTPUT=$(docker run --rm debian:trixie-slim sh -c "
+            apt-get update -qq > /dev/null
+            for pkg in tor-geoipdb ca-certificates golang; do
+              ver=\$(apt-cache policy \$pkg | grep Candidate | awk '{print \$2}')
+              echo \"\${pkg}=\${ver}\"
+            done
+          ")
+          echo "$OUTPUT" | while read line; do
+            PKG=$(echo $line | cut -d= -f1)
+            VER=$(echo $line | cut -d= -f2)
+            case "$PKG" in
+              tor-geoipdb)     echo "tor_geoipdb=${VER}" >> $GITHUB_OUTPUT ;;
+              ca-certificates) echo "ca_certs=${VER}" >> $GITHUB_OUTPUT ;;
+              golang)          echo "golang=${VER}" >> $GITHUB_OUTPUT ;;
+            esac
+          done
+
+      - name: Check for changes
+        id: check
+        run: |
+          FILE="package-versions.txt"
+          CHANGED=false
+
+          NEW_SHA="${{ steps.get_snowflake.outputs.sha }}"
+          OLD_SHA=$(grep "^snowflake-version-" $FILE | sed 's/^snowflake-version-//' || echo "")
+          if [ "$NEW_SHA" != "$OLD_SHA" ]; then
+            echo "Snowflake changed: $OLD_SHA -> $NEW_SHA"
+            CHANGED=true
+          fi
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            CHANGED=true
+          fi
+
+          echo "new_version_detected=$CHANGED" >> $GITHUB_OUTPUT
+
+  # ---------------------------------------------------------------------------
+  # Build Jobs (parallel per-arch)
+  # ---------------------------------------------------------------------------
+  build:
+    needs: check-versions
+    if: needs.check-versions.outputs.new_version_detected == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./snowflake-proxy
+    env:
+      IMAGE_NAME: snowflake-proxy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Snowflake Proxy (${{ matrix.suffix }})
+        uses: docker/build-push-action@v5
+        with:
+          context: ./snowflake-proxy
+          file: ./snowflake-proxy/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          build-args: |
+            SNOWFLAKE_VERSION=${{ needs.check-versions.outputs.snowflake_sha }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ matrix.suffix }}
+          cache-from: type=gha,scope=build-${{ matrix.suffix }}
+          cache-to: type=gha,mode=min,scope=build-${{ matrix.suffix }}
+
+  # ---------------------------------------------------------------------------
+  # Merge Tags
+  # ---------------------------------------------------------------------------
+  merge-tags:
+    needs: [build]
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest for latest
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/snowflake-proxy"
+          docker buildx imagetools create -t $IMAGE:latest \
+            $IMAGE:amd64 \
+            $IMAGE:arm64
+
+  # ---------------------------------------------------------------------------
+  # Update Repo
+  # ---------------------------------------------------------------------------
+  update-repo:
+    needs: [check-versions, merge-tags]
+    if: always() && needs.merge-tags.result == 'success'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./snowflake-proxy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update versions file and commit
+        run: |
+          FILE="package-versions.txt"
+
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git pull --rebase
+
+          echo "# Snowflake Proxy Versions" > $FILE
+          echo "" >> $FILE
+          echo "snowflake-version-${{ needs.check-versions.outputs.snowflake_sha }}" >> $FILE
+          echo "" >> $FILE
+          echo "# Debian Packages (trixie)" >> $FILE
+          echo "tor-geoipdb-${{ needs.check-versions.outputs.tor_geoipdb_ver }}" >> $FILE
+          echo "ca-certificates-${{ needs.check-versions.outputs.ca_certs_ver }}" >> $FILE
+          echo "golang-${{ needs.check-versions.outputs.golang_ver }}" >> $FILE
+
+          git add $FILE
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: Update snowflake-proxy versions"
+            git push
+          fi

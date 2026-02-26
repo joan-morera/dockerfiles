@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# This script is used to get the bridge line for the running bridge.
+# It is used by the user to get the bridge line to share with others.
+
+# If the bridge is not running, we can't get the bridge line.
+if ! pgrep -x "tor" > /dev/null
+then
+    echo "Tor is not running."
+    exit 1
+fi
+
+# We need to get the fingerprint of the bridge.
+# We can get it from the fingerprint file.
+FINGERPRINT_FILE="/var/lib/tor/fingerprint"
+if [ ! -f "$FINGERPRINT_FILE" ]; then
+    echo "Fingerprint file not found."
+    exit 1
+fi
+
+FINGERPRINT=$(cat "$FINGERPRINT_FILE" | cut -d ' ' -f 2)
+
+# We need to get the IP address of the bridge.
+# We can get it from the pt_state/obfs4_bridgeline.txt file.
+BRIDGELINE_FILE="/var/lib/tor/pt_state/obfs4_bridgeline.txt"
+if [ ! -f "$BRIDGELINE_FILE" ]; then
+    echo "Bridgeline file not found."
+    exit 1
+fi
+
+# The bridgeline file contains the bridge line, but it might not have the correct IP address if behind NAT.
+# However, for now we just output what is there.
+# Usually it looks like: Bridge obfs4 <IP>:<PORT> <FINGERPRINT> cert=... iat-mode=0
+
+cat "$BRIDGELINE_FILE"
