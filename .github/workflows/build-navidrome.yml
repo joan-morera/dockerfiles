@@ -1,10 +1,6 @@
 name: Build Navidrome Multi-Arch
 
 on:
-  push:
-    paths:
-      - 'navidrome/**'
-      - '.github/workflows/build-navidrome.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 4 * * 0'

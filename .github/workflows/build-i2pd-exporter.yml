@@ -1,10 +1,6 @@
 name: Build and Publish i2pd-exporter
 
 on:
-  push:
-    paths:
-      - 'i2pd-exporter/**'
-      - '.github/workflows/build-i2pd-exporter.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *' # Runs every day at 0 AM UTC

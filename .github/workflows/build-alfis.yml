@@ -1,10 +1,6 @@
 name: Build and Publish Alfis
 
 on:
-  push:
-    paths:
-      - 'alfis/**'
-      - '.github/workflows/build-alfis.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *' # Runs every day at 0 AM UTC

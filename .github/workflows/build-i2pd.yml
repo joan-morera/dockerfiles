@@ -2,10 +2,6 @@ name: Build and Publish I2PD
 run-name: Build I2PD
 
 on:
-  push:
-    paths:
-      - 'i2pd/**'
-      - '.github/workflows/build-i2pd.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *' # Runs every day at 0 AM UTC (main)
