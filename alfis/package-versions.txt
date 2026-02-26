@@ -3,7 +3,7 @@ alfis-v0.8.8
 
 # Only critical build/runtime deps: rust, cargo, openssl-libs-static, zlib-static, pkgconf
 cargo-1.91.1-r0
-openssl-libs-static-3.5.4-r0
+openssl-libs-static-3.5.5-r0
 pkgconf-2.5.1-r0
 rust-1.91.1-r0
 zlib-static-1.3.1-r2
