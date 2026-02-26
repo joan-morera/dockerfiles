@@ -13,13 +13,13 @@ permissions:
   contents: write
   packages: write
 
-defaults:
-  run:
-    working-directory: ./i2pd-exporter
 
 jobs:
   check-base-packages:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./i2pd-exporter
     outputs:
       changed: ${{ steps.check_changes.outputs.changed }}
     steps:
@@ -52,6 +52,9 @@ jobs:
 
   check-versions:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./i2pd-exporter
     outputs:
       new_version_detected: ${{ steps.check.outputs.new_version_detected }}
       latest_tag: ${{ steps.get_latest_release.outputs.tag }}
@@ -91,6 +94,9 @@ jobs:
             runner: ubuntu-24.04-arm
             tag_suffix: arm64
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./i2pd-exporter
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -137,6 +143,9 @@ jobs:
     needs: [check-base-packages, check-versions, build-images, merge-tags]
     if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./i2pd-exporter
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -13,13 +13,13 @@ permissions:
   contents: write
   packages: write
 
-defaults:
-  run:
-    working-directory: ./navidrome
 
 jobs:
   check-versions:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./navidrome
     outputs:
       rebuild: ${{ steps.check.outputs.rebuild }}
       
@@ -131,6 +131,9 @@ jobs:
     needs: check-versions
     if: needs.check-versions.outputs.rebuild == 'true'
     runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: ./navidrome
     env:
       IMAGE_NAME: navidrome
     steps:
@@ -168,6 +171,9 @@ jobs:
     needs: check-versions
     if: needs.check-versions.outputs.rebuild == 'true'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./navidrome
     env:
       IMAGE_NAME: navidrome
     steps:
@@ -209,6 +215,9 @@ jobs:
       needs: [check-versions, build-rpi4, build-amd64-v3]
       if: always() && needs.build-rpi4.result != 'failure' && needs.build-amd64-v3.result != 'failure' && needs.check-versions.outputs.rebuild == 'true'
       runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./navidrome
       steps:
         - uses: actions/checkout@v4
         - name: Update versions file

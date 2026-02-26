@@ -13,13 +13,14 @@ permissions:
   contents: write
   packages: write
 
-defaults:
-  run:
-    working-directory: ./qbittorrent
+# Removed global working-directory to avoid errors in jobs without checkout
 
 jobs:
   check-versions:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./qbittorrent
     outputs:
       # Build Flags
       rebuild_v1: ${{ steps.check.outputs.rebuild_v1 }}
@@ -238,6 +239,9 @@ jobs:
             cflags: -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security
             cxxflags: -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./qbittorrent
     env:
       IMAGE_NAME: qbittorrent
     steps:
@@ -276,6 +280,9 @@ jobs:
     needs: check-versions
     if: needs.check-versions.outputs.rebuild_v1 == 'true'
     runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: ./qbittorrent
     env:
       IMAGE_NAME: qbittorrent
     steps:
@@ -330,6 +337,9 @@ jobs:
             cflags: -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security
             cxxflags: -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./qbittorrent
     env:
       IMAGE_NAME: qbittorrent-lt2
     steps:
@@ -368,6 +378,9 @@ jobs:
     needs: check-versions
     if: needs.check-versions.outputs.rebuild_v2 == 'true'
     runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: ./qbittorrent
     env:
       IMAGE_NAME: qbittorrent-lt2
     steps:
@@ -447,6 +460,9 @@ jobs:
       needs: [check-versions, merge-v1, build-v1-rpi4, merge-v2, build-v2-rpi4]
       if: always() && (needs.check-versions.outputs.rebuild_v1 == 'true' || needs.check-versions.outputs.rebuild_v2 == 'true')
       runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./qbittorrent
       steps:
         - uses: actions/checkout@v4
         - name: Update versions file
