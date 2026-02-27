@@ -3,7 +3,7 @@ i2pd-2.59.0
 mimalloc-v3.2.8
 
 # Base Image (Distroless) Digest
-distroless-sha256:c2cac2cc7c4b1a853569b7a022d8105bf9669741e28bff13e31093ee18f229bb
+distroless-sha256:a7597527ac0daeb207427bc2b1d4b83a0fd4b4e00063488a2a89531e0241601d
 
 # Build Dependencies (Debian Trixie)
 libboost-date-time1.88-dev-1.88.0-1
