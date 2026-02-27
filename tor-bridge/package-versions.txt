@@ -1,8 +1,8 @@
 # Tor Bridge Versions
 
 lyrebird-fa56bc4acf39a7eafcd7f044e047e3936cd671fc
-tor-acd955f8620a5e81d5af972c6d510a0e62e1b5ca
-distroless-sha256:ebc189d971d5a44aceff87f9a22f9cab2d24a8081d89aef384a465798325c9b5
+tor-df027b09cab75efa06efdaceccd00fcda7cc8dd1
+distroless-sha256:d698ccb49fab6dcbf30d27cad4c4cac0f6c326d87093efda46f74d8fb5b88ebb
 
 # Build Dependencies (Debian Trixie)
 libcap-dev-1:2.75-10+b3
