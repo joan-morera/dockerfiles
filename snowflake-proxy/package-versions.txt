@@ -1,6 +1,6 @@
 # Snowflake Proxy Versions
 
-snowflake-version-c400c81a5dc94a3638883d2b2ed5a5948af7a873
+snowflake-version-44d0e7a0aadaf617b7ad48762a55fac96d94d8af
 
 # Debian Packages (trixie)
 tor-geoipdb-0.4.8.16-1
