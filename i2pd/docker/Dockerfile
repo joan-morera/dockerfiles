@@ -90,26 +90,62 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     cp -r contrib/certificates /certificates && \
     echo "[BUILD] Build stage complete!"
 
-# Prepare user and directories in builder (for Distroless)
+# Prepare user and directories in builder (for scratch)
 RUN useradd -u 1000 -s /bin/false -d /home/i2pd i2pd && \
     mkdir -p /home/i2pd/data /usr/share/i2pd /etc/i2pd && \
     chown -R i2pd:i2pd /home/i2pd /usr/share/i2pd /etc/i2pd
 
-# Stage 2: Final image (Distroless)
-FROM gcr.io/distroless/cc-debian13
+# Prepare Dist Files (Scratch Migration)
+RUN mkdir -p /dist/usr/lib /dist/lib64 /dist/etc/i2pd /dist/tmp /dist/home/i2pd/data /dist/usr/share/i2pd/certificates /dist/usr/bin && \
+    chmod 1777 /dist/tmp && \
+    chown -R i2pd:i2pd /dist/home/i2pd /dist/usr/share/i2pd /dist/etc/i2pd && \
+    # Create config files
+    echo "passwd: files" > /dist/etc/nsswitch.conf && \
+    echo "group: files" >> /dist/etc/nsswitch.conf && \
+    echo "hosts: files dns" >> /dist/etc/nsswitch.conf && \
+    # Copy User/Group
+    grep "i2pd" /etc/passwd > /dist/etc/passwd && \
+    grep "i2pd" /etc/group > /dist/etc/group && \
+    # Copy SSL Certs
+    cp -r /etc/ssl/certs /dist/etc/ssl/ && \
+    # Copy Application Artifacts
+    cp /i2pd /dist/usr/bin/i2pd && \
+    chown i2pd:i2pd /dist/usr/bin/i2pd && \
+    cp -r /certificates/* /dist/usr/share/i2pd/certificates/ && \
+    # Find and Copy Deps
+    BIN="/dist/usr/bin/i2pd" && \
+    DEPS=$(ldd $BIN | awk 'BEGIN{ORS=" "}$1~/^\//{print $1}$3~/^\//{print $3}' | sed 's/,//g') && \
+    for dep in $DEPS; do \
+        dir=$(dirname "$dep"); \
+        mkdir -p "/dist$dir"; \
+        cp -L "$dep" "/dist$dep"; \
+    done && \
+    # Copy NSS/Resolv libs (Runtime loaded)
+    LIBC_PATH=$(ldd $BIN | grep "libc.so" | awk '{print $3}') && \
+    if [ -n "$LIBC_PATH" ]; then \
+        LIB_DIR=$(dirname "$LIBC_PATH"); \
+        cp -L "$LIB_DIR"/libnss_dns.so* "/dist$LIB_DIR/" 2>/dev/null || true; \
+        cp -L "$LIB_DIR"/libnss_files.so* "/dist$LIB_DIR/" 2>/dev/null || true; \
+        cp -L "$LIB_DIR"/libresolv.so* "/dist$LIB_DIR/" 2>/dev/null || true; \
+    fi && \
+    # Ensure correct interpreter path
+    INTERP=$(readelf -l $BIN | grep "interpreter" | sed 's/.*: //;s/]//') && \
+    if [ -n "$INTERP" ] && [ ! -f "/dist$INTERP" ]; then \
+      mkdir -p "/dist$(dirname $INTERP)"; \
+      cp -L "$INTERP" "/dist$INTERP"; \
+    fi
+
+# Stage 2: Final image (Scratch)
+FROM scratch
 LABEL maintainer="JoanMorera"
 
 ARG I2PD_VERSION
 ENV I2PD_HOME="/home/i2pd" \
     DATA_DIR="/home/i2pd/data"
 
-# Copy user/group info from builder
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
+# Copy Dist from Builder
+COPY --from=builder /dist /
 
-# Copy application artifacts
-COPY --from=builder --chown=i2pd:i2pd /i2pd /usr/bin/i2pd
-COPY --from=builder --chown=i2pd:i2pd /certificates /usr/share/i2pd/certificates
 COPY --chown=i2pd:i2pd i2pd-docker.conf /etc/i2pd/i2pd.conf
 
 VOLUME "$DATA_DIR"
