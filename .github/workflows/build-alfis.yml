@@ -126,6 +126,7 @@ jobs:
              ALFIS_VERSION=${{ needs.check-versions.outputs.latest_tag }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/alfis:${{ matrix.tag_suffix }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:${{ matrix.tag_suffix }}
           cache-from: type=gha,scope=build-${{ matrix.tag_suffix }}
           cache-to: type=gha,mode=min,scope=build-${{ matrix.tag_suffix }}
 
@@ -139,6 +140,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Create and push manifest for release
         run: |
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/alfis:latest \
@@ -147,6 +153,11 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/alfis:armv7 \
             ghcr.io/${{ github.repository_owner }}/alfis:386
           
+          docker buildx imagetools create -t ${{ secrets.DOCKERHUB_USERNAME }}/alfis:latest \
+            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:amd64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:arm64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:armv7 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:386
 
   update-repo:
     needs: [check-base-packages, check-versions, build-images, merge-tags]
