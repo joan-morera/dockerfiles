@@ -10,7 +10,7 @@ libtorrent-v1-v1.2.20
 boost-v1-boost-1.86.0
 
 # Libtorrent V2
-libtorrent-v2-branch-cabad2505a6e0c1e7251e692085cc7a0dea14f85
+libtorrent-v2-branch-a782355cd329eda2fb47719367bb80765e4b6be8
 boost-v2-boost-1.90.0
 
 # System Dependencies (Debian Sid)
