@@ -2,16 +2,16 @@
 i2pd-2.59.0
 mimalloc-v3.2.8
 
-# Base Image (Distroless) Digest
-distroless-sha256:a7597527ac0daeb207427bc2b1d4b83a0fd4b4e00063488a2a89531e0241601d
-
-# Build Dependencies (Debian Trixie)
+# Build and Runtime Dependencies (Debian Trixie)
+ca-certificates-20250419
 libboost-date-time1.88-dev-1.88.0-1
 libboost-filesystem1.88-dev-1.88.0-1
 libboost-iostreams1.88-dev-1.88.0-1
 libboost-program-options1.88-dev-1.88.0-1
 libboost-system1.88-dev-1.88.0-1
 libboost-thread1.88-dev-1.88.0-1
+libc6-2.41-12+deb13u1
+libgcc-s1-14.2.0-19
 libminiupnpc-dev-2.2.8-2+b2
 libssl-dev-3.5.4-1~deb13u2
 libstdc++-14-dev-14.2.0-19
