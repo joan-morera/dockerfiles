@@ -1,6 +1,6 @@
 # Tor Bridge Versions
 
-lyrebird-fa56bc4acf39a7eafcd7f044e047e3936cd671fc
+lyrebird-c399d4151770ef7fccedd58bb99106de60a4874c
 tor-df027b09cab75efa06efdaceccd00fcda7cc8dd1
 distroless-sha256:d698ccb49fab6dcbf30d27cad4c4cac0f6c326d87093efda46f74d8fb5b88ebb
 
