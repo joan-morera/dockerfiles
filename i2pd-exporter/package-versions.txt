@@ -1,6 +1,6 @@
-# Main Application Versions
+# I2PD Exporter Versions
 i2pd-exporter-v2.0.4
-# Build Dependencies (Alpine Latest)
-# Only critical build deps: rust, cargo
+
+# Build Dependencies
 cargo-1.91.1-r0
 rust-1.91.1-r0
