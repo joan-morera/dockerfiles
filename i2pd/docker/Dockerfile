@@ -32,23 +32,35 @@ ARG ARM64_VARIANT=generic
 ARG I2PD_VERSION
 ARG MIMALLOC_VERSION=v3.1.5
 
-# Common hardening and optimization flags
-ARG HARDENING_FLAGS="-O3 -flto -fno-plt -fgraphite-identity -floop-nest-optimize -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wdate-time"
+# Common security hardening and LTO flags (optimization level is architecture-specific).
+# Removed: -fno-plt (no-op with -static), -fgraphite-identity and -floop-nest-optimize
+#   (Graphite loop transforms have no effect without a complete Graphite pass pipeline;
+#    i2pd hot paths are packet dispatch/state-machines, not numeric kernels).
+# Added:  -fvisibility=hidden (improves LTO cross-TU inlining quality),
+#         -ffunction-sections -fdata-sections (enables linker dead-code elimination via --gc-sections).
+ARG BASE_FLAGS="-flto -fvisibility=hidden -ffunction-sections -fdata-sections -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -Wdate-time"
 
 # Build mimalloc from source (static)
 RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
-    export MI_OPT_ARCH_FLAG="" && \
+    # Optimization level is architecture-aware:
+    #   amd64:  -O3  — larger caches absorb the bigger .text from inlining/unrolling/vectorization.
+    #   arm64:  -Os  — Cortex-A72 has a 48 KB L1 I-cache; -O3 inlining bloat causes cache thrashing
+    #                  while heavy crypto is handled by OpenSSL hardware kernels anyway.
     if [ "$TARGETARCH" = "arm64" ]; then \
+      export OPT_FLAG="-Os"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
+        # +crypto suffix enables ARMv8 AES/SHA hardware instructions used by OpenSSL
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
       fi \
+    else \
+      export OPT_FLAG="-O3"; \
     fi && \
     echo "[BUILD] Downloading mimalloc ${MIMALLOC_VERSION}..." && \
     wget -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
     tar xvfz mimalloc.tar.gz && \
     cd mimalloc-$(echo ${MIMALLOC_VERSION} | sed 's/v//') && \
     mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DMI_BUILD_STATIC=ON -DMI_BUILD_SHARED=OFF -DMI_OVERRIDE=ON -DMI_NO_OPT_ARCH=ON $MI_OPT_ARCH_FLAG -DMI_INSTALL_TOPLEVEL=ON -DCMAKE_C_FLAGS="$HARDENING_FLAGS $CXXFLAGS_ARCH_SPECIFIC" -DCMAKE_CXX_FLAGS="$HARDENING_FLAGS $CXXFLAGS_ARCH_SPECIFIC" .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DMI_BUILD_STATIC=ON -DMI_BUILD_SHARED=OFF -DMI_OVERRIDE=ON -DMI_NO_OPT_ARCH=ON -DMI_INSTALL_TOPLEVEL=ON -DCMAKE_C_FLAGS="$BASE_FLAGS $OPT_FLAG $CXXFLAGS_ARCH_SPECIFIC" -DCMAKE_CXX_FLAGS="$BASE_FLAGS $OPT_FLAG $CXXFLAGS_ARCH_SPECIFIC" .. && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && \
@@ -57,18 +69,22 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
 # Download and build i2pd
 RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     export CXXFLAGS_ARCH_EXTRA="" && \
-    # Determine architecture-specific library directory and CPU flags
+    # Determine architecture-specific library directory, optimization level, and CPU flags.
     if [ "$TARGETARCH" = "arm64" ]; then \
+      export OPT_FLAG="-Os"; \
       export LIBDIR="/usr/lib/aarch64-linux-gnu"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
+        # +crypto: enables ARMv8 AES/SHA hardware extensions (critical for OpenSSL crypto kernels)
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
         export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard"; \
         echo "[BUILD] Building for ARM64 (aarch64) with Raspberry Pi 4 optimizations"; \
       else \
-        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard"; \
+        # Generic arm64: explicit +crypto march for hardware AES/SHA on any ARMv8 capable host
+        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard -march=armv8-a+crypto"; \
         echo "[BUILD] Building for ARM64 (aarch64) generic"; \
       fi \
     else \
+      export OPT_FLAG="-O3"; \
       export LIBDIR="/usr/lib/x86_64-linux-gnu"; \
       export CXXFLAGS_ARCH_EXTRA="-fcf-protection"; \
       echo "[BUILD] Building for AMD64 (x86_64)"; \
@@ -82,7 +98,9 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     # Build i2pd
     # We suppress specific linker warnings about glibc runtime dependencies (dlopen, getaddrinfo)
     # because we guarantee the correct runtime environment (debian:sid-slim) in the final image.
-    make -j$(nproc) WITH_UPNP=yes USE_STATIC=yes CXXFLAGS="$HARDENING_FLAGS -ffile-prefix-map=/i2pd_src=. ${CXXFLAGS_ARCH_SPECIFIC} ${CXXFLAGS_ARCH_EXTRA}" LDFLAGS="-Wl,-z,relro -static -lpthread -lm" LDLIBS="/usr/local/lib/libmimalloc.a ${LIBDIR}/libboost_program_options.a ${LIBDIR}/libssl.a ${LIBDIR}/libcrypto.a ${LIBDIR}/libz.a ${LIBDIR}/libminiupnpc.a -lzstd -latomic -lpthread -ldl" 2>&1 | grep --line-buffered -v "requires at runtime the shared libraries from the glibc version used for linking" && \
+    # --gc-sections: drops unreferenced functions/data from statically linked libraries,
+    #   reducing the final binary's hot .text footprint (pairs with -ffunction-sections/-fdata-sections).
+    make -j$(nproc) WITH_UPNP=yes USE_STATIC=yes CXXFLAGS="$BASE_FLAGS $OPT_FLAG -ffile-prefix-map=/i2pd_src=. ${CXXFLAGS_ARCH_SPECIFIC} ${CXXFLAGS_ARCH_EXTRA}" LDFLAGS="-Wl,-z,relro -Wl,--gc-sections -static -lpthread -lm" LDLIBS="/usr/local/lib/libmimalloc.a ${LIBDIR}/libboost_program_options.a ${LIBDIR}/libssl.a ${LIBDIR}/libcrypto.a ${LIBDIR}/libz.a ${LIBDIR}/libminiupnpc.a -lzstd -latomic -lpthread -ldl" 2>&1 | grep --line-buffered -v "requires at runtime the shared libraries from the glibc version used for linking" && \
     echo "[BUILD] Compilation complete! Stripping and copying binary..." && \
     strip i2pd && \
     cp i2pd /i2pd && \

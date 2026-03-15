@@ -22,16 +22,19 @@ A statically linked, hardened, and minimal container image for [i2pd](https://gi
 *   **Static Linking**: `zlib`, `boost`, `openssl`, `mimalloc`, and `zstd` are linked statically.
 *   **Binary Optimization**:
     *   Binary is **stripped** of debugging symbols.
-    *   Built with `-O3` and Link Time Optimization (`-flto`).
+    *   Optimization level is **architecture-aware**:
+        *   `amd64`: `-O3` — larger L1/L2/L3 caches absorb the bigger `.text` from inlining, loop unrolling, and auto-vectorization.
+        *   `arm64`: `-Os` — Cortex-A72 has a small 48 KB L1 I-cache; `-O3` inlining bloat causes cache thrashing while most heavy crypto is handled by OpenSSL hardware kernels anyway.
+    *   Link Time Optimization (`-flto`) combined with `-fvisibility=hidden` for cross-translation-unit inlining and improved dead-code elimination.
+    *   `-ffunction-sections -fdata-sections` + linker `--gc-sections` to strip unreferenced functions and data from statically linked libraries, reducing the hot `.text` footprint.
 *   **Hardening Flags** (Applied to both i2pd and mimalloc):
     *   `-fstack-protector-strong`
     *   `-D_FORTIFY_SOURCE=2`
     *   `-Wformat -Werror=format-security`
     *   `-fstack-clash-protection`
 *   **Performance Optimizations**:
-    *   `-fno-plt` for static builds
-    *   `-fgraphite-identity -floop-nest-optimize` for loop optimization
     *   `mimalloc` memory allocator (Release build, also hardened)
+    *   ARMv8 hardware crypto extensions (`+crypto`) — enables AES/SHA hardware acceleration used by OpenSSL on ARM64 (Cortex-A72 and generic `armv8-a`)
     *   NEON SIMD support (ARM64)
 *   **CI/CD**: Images are automatically rebuilt when:
     *   A new `i2pd` version is released.
