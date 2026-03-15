@@ -32,12 +32,11 @@ jobs:
           echo "i2pd=${I2PD}" >> $GITHUB_OUTPUT
           echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
 
-      - name: Check for package updates (Apt-cache policy)
+      - name: Check for package updates (Alpine)
         id: get_pkgs
         run: |
-          PACKAGES="zlib1g-dev libboost-filesystem1.88-dev libboost-system1.88-dev libboost-program-options1.88-dev libboost-date-time1.88-dev libboost-thread1.88-dev libboost-iostreams1.88-dev libssl-dev libzstd-dev libminiupnpc-dev libstdc++-14-dev libc6 libgcc-s1 ca-certificates"
-          docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
-          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
+          PACKAGES="build-base cmake wget ca-certificates boost-dev boost-static openssl-dev openssl-libs-static zlib-dev zstd-dev zstd-static miniupnpc-dev linux-headers"
+          docker run --rm alpine:latest sh -c "apk add --no-cache $PACKAGES > /dev/null 2>&1 && apk info 2>/dev/null" | sort > current-packages.txt
 
       - name: Check for Changes
         id: check
@@ -51,7 +50,7 @@ jobs:
             REBUILD=true
           elif [ ! -f $FILE ] || ! grep -q "$I2PD" $FILE || ! grep -q "$MIMALLOC" $FILE; then
             REBUILD=true
-          elif ! diff -q current-packages.txt <(grep -vE "^(i2pd-|mimalloc-|distroless-|#)" $FILE | grep -v "^$" | sort); then
+          elif ! diff -q current-packages.txt <(grep -vE "^(i2pd-|mimalloc-|#)" $FILE | grep -v "^$" | sort); then
              REBUILD=true
           fi
           
@@ -65,7 +64,7 @@ jobs:
             echo "i2pd-${{ steps.get_versions.outputs.i2pd }}"
             echo "mimalloc-${{ steps.get_versions.outputs.mimalloc }}"
             echo ""
-            echo "# Debian Trixie Dependencies"
+            echo "# Alpine Dependencies"
             cat current-packages.txt
           } > meta.txt
           CONTENT=$(cat meta.txt | base64 -w 0)

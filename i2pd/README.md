@@ -1,46 +1,46 @@
 # i2pd-docker
 
-This is a **personal** Docker Image for [i2pd](https://github.com/PurpleI2P/i2pd), built with statically linked libraries, mimalloc and glibc on **Debian Trixie** to ensure compatibility with Distroless.
+Personal Docker image for [i2pd](https://github.com/PurpleI2P/i2pd). Built on Alpine Linux with statically linked libraries and mimalloc. The final image runs from scratch with no base OS.
 
 ## Why
-I started building it because the official docker image stopped updating for a while, and fell into the Rabbit Hole of making it as efficient as possible, as I mainly run it in a quite congested Raspberry Pi 4.
 
-Performance 
+The official Docker image stopped updating for a while, which led me down the rabbit hole of making it as efficient as possible. I mainly run it on a congested Raspberry Pi 4.
 
-With the RPI 4 build, running it as a Floodfill, with around 50 active tunnels, and 10.000 - 12.000 transit tunnels, limited to 1 CPU.
+With the RPi4 build running as a Floodfill, with around 50 active tunnels and 10,000-12,000 transit tunnels, limited to 1 CPU.
 
 > [!NOTE]
 > This repository contains my personal configuration for running i2pd in a container. I am sharing it for reference in case it is useful to others.
 
-A statically linked, hardened, and minimal container image for [i2pd](https://github.com/PurpleI2P/i2pd).
-
 ## Details
 
-*   **Base Image**: `gcr.io/distroless/cc-debian13` (Debian Trixie).
-    *   **Minimal Size**: The final image is approximately **30-40 MB**.
-    *   **Secure**: No shell, no package manager, non-root user.
-*   **Static Linking**: `zlib`, `boost`, `openssl`, `mimalloc`, and `zstd` are linked statically.
-*   **Binary Optimization**:
-    *   Binary is **stripped** of debugging symbols.
-    *   Optimization level is **architecture-aware**:
-        *   `amd64`: `-O3` — larger L1/L2/L3 caches absorb the bigger `.text` from inlining, loop unrolling, and auto-vectorization.
-        *   `arm64`: `-Os` — Cortex-A72 has a small 48 KB L1 I-cache; `-O3` inlining bloat causes cache thrashing while most heavy crypto is handled by OpenSSL hardware kernels anyway.
-    *   Link Time Optimization (`-flto`) combined with `-fvisibility=hidden` for cross-translation-unit inlining and improved dead-code elimination.
-    *   `-ffunction-sections -fdata-sections` + linker `--gc-sections` to strip unreferenced functions and data from statically linked libraries, reducing the hot `.text` footprint.
-*   **Hardening Flags** (Applied to both i2pd and mimalloc):
-    *   `-fstack-protector-strong`
-    *   `-D_FORTIFY_SOURCE=2`
-    *   `-Wformat -Werror=format-security`
-    *   `-fstack-clash-protection`
-*   **Performance Optimizations**:
-    *   `mimalloc` memory allocator (Release build, also hardened)
-    *   ARMv8 hardware crypto extensions (`+crypto`) — enables AES/SHA hardware acceleration used by OpenSSL on ARM64 (Cortex-A72 and generic `armv8-a`)
-    *   NEON SIMD support (ARM64)
-*   **CI/CD**: Images are automatically rebuilt when:
-    *   A new `i2pd` version is released.
-    *   `mimalloc` is updated.
-    *   Build dependencies (Debian Trixie) are updated.
-    *   The base Distroless image is updated.
+**Builder**: `alpine:latest`. Builds i2pd and mimalloc from source.
+
+**Final image**: `scratch`. The image contains only the binary, certificates, and SSL certs. No shell, no package manager, non-root user (`i2pd`, UID 1000). Roughly 10-15 MB.
+
+**Static linking**: `zlib`, `boost`, `openssl`, `mimalloc`, `miniupnpc`, and `zstd` are all linked statically. Because the build uses Alpine's musl libc, the resulting binary is fully self-contained with no runtime shared library dependencies.
+
+**Compiler optimizations**:
+- Binary is stripped of debug symbols.
+- Optimization level is architecture-aware:
+  - `amd64`: `-O3` for maximum speed. Larger caches absorb the extra code size from inlining and vectorization.
+  - `arm64`: `-Os` to avoid cache pressure on the Cortex-A72's 48 KB L1 I-cache. OpenSSL handles heavy crypto via hardware kernels anyway.
+- Link Time Optimization (`-flto`) with `-fvisibility=hidden` for better cross-unit inlining.
+- Dead code stripped at link time via `-ffunction-sections -fdata-sections` and `--gc-sections`.
+
+**Security hardening** (applied to both i2pd and mimalloc):
+- `-fstack-protector-strong`
+- `-D_FORTIFY_SOURCE=2`
+- `-Wformat -Werror=format-security`
+- `-fstack-clash-protection`
+
+**Performance**:
+- `mimalloc` as the memory allocator (statically linked, Release build, also hardened).
+- ARMv8 hardware crypto extensions (`+crypto`) for hardware AES/SHA on arm64.
+
+**Automatic rebuilds** when:
+- A new i2pd version is released.
+- mimalloc is updated.
+- Alpine package versions change.
 
 ## Usage
 
@@ -64,7 +64,7 @@ services:
 
 ### Docker Run
 
-**Standard (Multi-arch):**
+**Standard (multi-arch):**
 ```bash
 docker run -d \
   --name i2pd \
@@ -73,7 +73,7 @@ docker run -d \
   ghcr.io/joan-morera/i2pd:latest
 ```
 
-**Raspberry Pi 4 Optimized:**
+**Raspberry Pi 4:**
 ```bash
 docker run -d \
   --name i2pd \
@@ -82,4 +82,4 @@ docker run -d \
   ghcr.io/joan-morera/i2pd:rpi4
 ```
 
-> **Note:** This image uses Distroless and does not contain a shell. It runs `i2pd` directly. Default configuration files are baked into the image but are not automatically copied to the data volume.
+> **Note:** This image has no shell. It runs `i2pd` directly. The default config is baked in but can be overridden by mounting a custom `i2pd.conf`.
