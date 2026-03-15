@@ -110,3 +110,17 @@ jobs:
             git pull --rebase
             git push
           fi
+
+  prune-packages:
+    needs: update-repo
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Prune untagged versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ inputs.image_name }}
+          package-type: 'container'
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: 'true'
