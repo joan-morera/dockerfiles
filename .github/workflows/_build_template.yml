@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           cd ${{ inputs.context }}
-          echo "${{ inputs.version_metadata }}" > package-versions.txt
+          echo "${{ inputs.version_metadata }}" | base64 -d > package-versions.txt
           
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
