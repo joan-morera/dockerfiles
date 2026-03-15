@@ -1,1 +1,8 @@
-IyBTbm93Zmxha2UgUHJveHkgVmVyc2lvbnMKCnNub3dmbGFrZS12ZXJzaW9uLWUxMWEyYjEzNmEwMDc4OWI2ODE1NDc0YmJjNDE2OWI4MGZmMGQ3ZGEKCiMgRGViaWFuIFBhY2thZ2VzICh0cml4aWUpCnRvci1nZW9pcGRiPTAuNC44LjE2LTEKY2EtY2VydGlmaWNhdGVzPTIwMjUwNDE5CmdvbGFuZz0yOjEuMjR+Mgo=
+# Snowflake Proxy Versions
+
+snowflake-version-e11a2b136a00789b6815474bbc4169b80ff0d7da
+
+# Debian Packages (trixie)
+tor-geoipdb=0.4.8.16-1
+ca-certificates=20250419
+golang=2:1.24~2
