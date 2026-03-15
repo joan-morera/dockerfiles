@@ -136,7 +136,6 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
       -prefix /usr/local \
       -static \
       -release \
-      -optimize-size \
       -no-gui \
       -no-widgets \
       -no-dbus \

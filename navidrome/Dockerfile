@@ -27,7 +27,8 @@ RUN pacman -Syu --noconfirm && \
     nodejs \
     npm \
     python \
-    tzdata && \
+    tzdata \
+    aria2 && \
     echo "show-progress = off" >> /etc/wgetrc
 
 # Arguments (Versions = Commit SHAs)
@@ -121,11 +122,14 @@ RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
 # 3. Build FFmpeg - From Git (GitHub Mirror)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
-    git clone -q https://github.com/FFmpeg/FFmpeg.git ffmpeg-src && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://github.com/FFmpeg/FFmpeg/archive/${FFMPEG_VERSION}.tar.gz" -o ffmpeg.tar.gz && \
+    tar xzf ffmpeg.tar.gz && \
+    mv FFmpeg-* ffmpeg-src && \
     cd ffmpeg-src && \
-    git checkout ${FFMPEG_VERSION} && \
     ./configure \
       --prefix=/usr/local \
+      --extra-cflags="${CFLAGS}" \
+      --extra-cxxflags="${CXXFLAGS}" \
       --pkg-config-flags="--static" \
       --extra-cflags="${CFLAGS}" \
       --extra-ldflags="${LDFLAGS} -static" \
@@ -179,15 +183,16 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
       && \
     make -j$(nproc) && \
     make install && \
-    cd .. && rm -rf ffmpeg-src
+    cd .. && rm -rf ffmpeg*
 
 # -----------------------------------------------------------------------------
 # 4. Build Navidrome - From GitHub (HEAD)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
-    git clone -q https://github.com/navidrome/navidrome.git navidrome-src && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -o navidrome.tar.gz && \
+    tar xzf navidrome.tar.gz && \
+    mv navidrome-${NAVIDROME_VERSION} navidrome-src && \
     cd navidrome-src && \
-    git checkout ${NAVIDROME_VERSION} && \
     # Frontend
     make setup && \
     make buildjs && \
@@ -196,7 +201,8 @@ RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
     export CGO_LDFLAGS="-L/usr/local/lib -ltag -lz -lstdc++ -lm" && \
     export CGO_CFLAGS="-I/usr/local/include/taglib -I/usr/local/include" && \
     export CGO_CFLAGS_ALLOW="--define-prefix" && \
-    go build -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=$(git rev-parse HEAD) -X github.com/navidrome/navidrome/resources.Tag=0.0.0-HEAD" -o navidrome . && \
+    SHORT_SHA=$(echo ${NAVIDROME_VERSION} | cut -c1-7) && \
+    go build -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=${SHORT_SHA} -X github.com/navidrome/navidrome/resources.Tag=${SHORT_SHA}" -o navidrome . && \
     cp navidrome /usr/local/bin/navidrome && \
     cd .. && rm -rf navidrome-src
 
