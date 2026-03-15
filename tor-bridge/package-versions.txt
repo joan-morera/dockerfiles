@@ -1,17 +1,15 @@
 # Tor Bridge Versions
-
 lyrebird-fc105a03c0e0acc2479301c361c012ffed359c43
 tor-df027b09cab75efa06efdaceccd00fcda7cc8dd1
-distroless-sha256:d698ccb49fab6dcbf30d27cad4c4cac0f6c326d87093efda46f74d8fb5b88ebb
 
 # Build Dependencies (Debian Trixie)
-libcap-dev-1:2.75-10+b3
+libcap-dev-1:2.75-10+b8
 libevent-dev-2.1.12-stable-10+b1
 liblz4-dev-1.10.0-4
 liblzma-dev-5.8.1-1
 libscrypt-dev-1.22-1
 libseccomp-dev-2.6.0-2
-libssl-dev-3.5.4-1~deb13u2
+libssl-dev-3.5.5-1~deb13u1
 libzstd-dev-1.5.7+dfsg-1
 tor-geoipdb-0.4.8.16-1
 zlib1g-dev-1:1.3.dfsg+really1.3.1-1+b1
