@@ -9,9 +9,6 @@ permissions:
   contents: write
   packages: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   check-versions:
     runs-on: ubuntu-latest
@@ -24,7 +21,7 @@ jobs:
       app_version: ${{ steps.get_latest.outputs.tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get latest release
         id: get_latest
