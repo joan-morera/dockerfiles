@@ -11,7 +11,7 @@ RUN apk add --no-cache \
 ARG APP_VERSION
 
 # Build i2pd-exporter (Static)
-RUN wget "https://github.com/Jercik/i2pd-exporter/archive/refs/tags/${APP_VERSION}.tar.gz" -O app.tar.gz && \
+RUN wget -q "https://github.com/Jercik/i2pd-exporter/archive/refs/tags/${APP_VERSION}.tar.gz" -O app.tar.gz && \
     tar xvfz app.tar.gz && \
     cd i2pd-exporter-$(echo $APP_VERSION | sed 's/v//') && \
     # Compile statically

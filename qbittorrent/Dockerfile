@@ -59,7 +59,7 @@ WORKDIR /build
 # -----------------------------------------------------------------------------
 ARG TARGETARCH
 RUN echo "[BUILD] Building OpenSSL ${OPENSSL_VERSION} for ${TARGETARCH}..." && \
-    wget "https://github.com/openssl/openssl/archive/refs/tags/${OPENSSL_VERSION}.tar.gz" -O openssl.tar.gz && \
+    wget -q "https://github.com/openssl/openssl/archive/refs/tags/${OPENSSL_VERSION}.tar.gz" -O openssl.tar.gz && \
     tar xzf openssl.tar.gz && \
     cd openssl-openssl-$(echo $OPENSSL_VERSION | sed 's/openssl-//') && \
     # Determine Architecture
@@ -79,7 +79,7 @@ RUN echo "[BUILD] Building OpenSSL ${OPENSSL_VERSION} for ${TARGETARCH}..." && \
 # 3. Build Mimalloc (Static)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
-    wget "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
+    wget -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
     tar xzf mimalloc.tar.gz && \
     cd mimalloc-$(echo $MIMALLOC_VERSION | sed 's/v//') && \
     mkdir build && cd build && \
@@ -101,7 +101,7 @@ RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
 # -----------------------------------------------------------------------------
 # Boost formatting: boost-1.88.0 -> 1.88.0
 RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
-    git clone --depth 1 --branch ${BOOST_VERSION} --recurse-submodules https://github.com/boostorg/boost.git boost-src && \
+    git clone -q --depth 1 --branch ${BOOST_VERSION} --recurse-submodules https://github.com/boostorg/boost.git boost-src && \
     cd boost-src && \
     ./bootstrap.sh --prefix=/usr/local && \
     ./b2 -j$(nproc) install \
@@ -126,7 +126,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
     QT_VER_CLEAN=$(echo $QT_VERSION | sed 's/v//') && \
     QT_VER_SHORT=$(echo $QT_VER_CLEAN | cut -d. -f1-2) && \
-    wget "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qt.tar.xz && \
+    wget -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qt.tar.xz && \
     tar xf qt.tar.xz && \
     cd qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Configure for static build
@@ -162,7 +162,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     cmake --install . && \
     cd .. && rm -rf qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Build qttools (needed for LinguistTools)
-    wget "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qttools.tar.xz && \
+    wget -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qttools.tar.xz && \
     tar xf qttools.tar.xz && \
     cd qttools-everywhere-src-${QT_VER_CLEAN} && \
     /usr/local/bin/qt-configure-module . && \
@@ -175,7 +175,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Libtorrent ${LIBTORRENT_VERSION}..." && \
     # Clone full repo (needed to checkout specific commit hash for V2)
-    git clone --recurse-submodules https://github.com/arvidn/libtorrent.git && \
+    git clone -q --recurse-submodules https://github.com/arvidn/libtorrent.git && \
     cd libtorrent && \
     git checkout ${LIBTORRENT_VERSION} && \
     git submodule update --init --recursive && \
@@ -196,7 +196,7 @@ RUN echo "[BUILD] Building Libtorrent ${LIBTORRENT_VERSION}..." && \
 # 7. Build qBittorrent (Static)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building qBittorrent ${QBITTORRENT_VERSION}..." && \
-    git clone --depth 1 --branch ${QBITTORRENT_VERSION} https://github.com/qbittorrent/qBittorrent.git && \
+    git clone -q --depth 1 --branch ${QBITTORRENT_VERSION} https://github.com/qbittorrent/qBittorrent.git && \
     cd qBittorrent && \
     cmake -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=Release \

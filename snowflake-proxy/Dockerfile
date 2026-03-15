@@ -36,7 +36,7 @@ ARG SNOWFLAKE_VERSION
 # Build Snowflake Proxy
 WORKDIR /build
 RUN echo "[BUILD] Cloning Snowflake..." && \
-    git clone https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git && \
+    git clone -q https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git && \
     cd snowflake && \
     # Checkout specific commit if provided
     if [ -n "$SNOWFLAKE_VERSION" ] && [ "$SNOWFLAKE_VERSION" != "latest" ]; then \

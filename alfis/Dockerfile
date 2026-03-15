@@ -23,7 +23,7 @@ ENV CARGO_PROFILE_RELEASE_STRIP=symbols
 
 # Build Alfis
 # We find the directory name dynamically because the tarball extracts to "Alfis-<tag without v sometimes>" or similar
-RUN wget "https://github.com/Revertron/Alfis/archive/refs/tags/${ALFIS_VERSION}.tar.gz" -O alfis.tar.gz && \
+RUN wget -q "https://github.com/Revertron/Alfis/archive/refs/tags/${ALFIS_VERSION}.tar.gz" -O alfis.tar.gz && \
     tar xvfz alfis.tar.gz && \
     cd Alfis-* && \
     cargo rustc --release --bin alfis --no-default-features --features="doh" -- -C target-feature=+crt-static && \

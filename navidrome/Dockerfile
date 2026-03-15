@@ -55,7 +55,7 @@ WORKDIR /build
 # ZLIB (Static) - Needed for Navidrome/TagLib linkage
 # Using ${ZLIB_VERSION} (Automatically tracked)
 RUN echo "[BUILD] Building Zlib (${ZLIB_VERSION})..." && \
-    wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz && \
+    wget -q https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz && \
     tar -xzf zlib-${ZLIB_VERSION}.tar.gz && \
     cd zlib-${ZLIB_VERSION} && \
     ./configure --static --prefix=/usr/local && \
@@ -65,7 +65,7 @@ RUN echo "[BUILD] Building Zlib (${ZLIB_VERSION})..." && \
 
 # LAME (MP3) - From Debian Salsa (Multimedia Team)
 RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
-    git clone https://salsa.debian.org/multimedia-team/lame.git lame-src && \
+    git clone -q https://salsa.debian.org/multimedia-team/lame.git lame-src && \
     cd lame-src && \
     git checkout ${MP3LAME_VERSION} && \
     ./configure \
@@ -82,7 +82,7 @@ RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
 
 # Opus - From GitHub
 RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
-    git clone https://github.com/xiph/opus.git opus-src && \
+    git clone -q https://github.com/xiph/opus.git opus-src && \
     cd opus-src && \
     git checkout ${OPUS_VERSION} && \
     ./autogen.sh && \
@@ -100,7 +100,7 @@ RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
 
 # TagLib (Needed for Navidrome) - From GitHub
 RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
-    git clone https://github.com/taglib/taglib.git taglib-src && \
+    git clone -q https://github.com/taglib/taglib.git taglib-src && \
     cd taglib-src && \
     git checkout ${TAGLIB_VERSION} && \
     git submodule update --init --recursive && \
@@ -120,7 +120,7 @@ RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
 # 3. Build FFmpeg - From Git (GitHub Mirror)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
-    git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg-src && \
+    git clone -q https://github.com/FFmpeg/FFmpeg.git ffmpeg-src && \
     cd ffmpeg-src && \
     git checkout ${FFMPEG_VERSION} && \
     ./configure \
@@ -184,7 +184,7 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
 # 4. Build Navidrome - From GitHub (HEAD)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
-    git clone https://github.com/navidrome/navidrome.git navidrome-src && \
+    git clone -q https://github.com/navidrome/navidrome.git navidrome-src && \
     cd navidrome-src && \
     git checkout ${NAVIDROME_VERSION} && \
     # Frontend

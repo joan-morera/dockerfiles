@@ -35,7 +35,7 @@ RUN CGO_ENABLED=0 go build -o /usr/bin/bootstrapper bootstrapper.go
 
 # 2. Clone and build lyrebird
 WORKDIR /go/src/gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird
-RUN git clone https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git . && \
+RUN git clone -q https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git . && \
     if [ -n "$LYREBIRD_VERSION" ]; then git checkout "$LYREBIRD_VERSION"; fi && \
     export CGO_ENABLED=1 && \
     if [ -d "./cmd/lyrebird" ]; then TARGET="./cmd/lyrebird"; elif [ -d "./obfs4proxy" ]; then TARGET="./obfs4proxy"; else TARGET="."; fi && \
@@ -43,7 +43,7 @@ RUN git clone https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transp
 
 # 3. Clone and build Tor
 WORKDIR /usr/src/tor
-RUN git clone https://gitlab.torproject.org/tpo/core/tor.git . && \
+RUN git clone -q https://gitlab.torproject.org/tpo/core/tor.git . && \
     if [ -n "$TOR_VERSION" ]; then git checkout "$TOR_VERSION"; fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
       export LIBDIR="/usr/lib/aarch64-linux-gnu"; \
