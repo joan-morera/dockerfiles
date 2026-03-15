@@ -263,6 +263,9 @@ RUN mkdir -p /dist/usr/lib /dist/lib64 /dist/etc /dist/tmp /dist/home/qbt/data /
 # Stage 2: Final (Scratch)
 # -----------------------------------------------------------------------------
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="qBittorrent-nox (Static, Optimized)"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL maintainer="JoanMorera"
 
 # Copy Dist from Builder

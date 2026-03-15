@@ -29,6 +29,11 @@ jobs:
           LATEST_TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/Jercik/i2pd-exporter.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
           echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
 
+      - name: Check for latest package versions
+        id: get_pkgs
+        run: |
+          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk list rust cargo" | awk '{print $1}' | sort > current-packages.txt
+
       - name: Check for Changes
         id: check
         run: |
@@ -40,6 +45,8 @@ jobs:
             REBUILD=true
           elif [ ! -f $FILE ] || ! grep -q "$VERSION" $FILE; then
             REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(i2pd-exporter-|#)" $FILE | grep -v "^$" | sort); then
+             REBUILD=true
           fi
           
           echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
@@ -50,6 +57,9 @@ jobs:
           {
             echo "# I2PD Exporter Versions"
             echo "i2pd-exporter-${{ steps.get_latest.outputs.tag }}"
+            echo ""
+            echo "# Build Dependencies"
+            cat current-packages.txt
           } > meta.txt
           CONTENT=$(cat meta.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
