@@ -35,12 +35,14 @@ jobs:
           echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
           echo "boost_pkg_version=${BOOST_PKG_VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Check for package updates (Alpine)
+      - name: Check for library dependency versions (Alpine)
         id: get_pkgs
         run: |
           BOOST_PKG_VERSION="${{ steps.get_versions.outputs.boost_pkg_version }}"
-          PACKAGES="build-base cmake wget ca-certificates boost${BOOST_PKG_VERSION}-dev boost${BOOST_PKG_VERSION}-static openssl-dev openssl-libs-static zlib-dev zlib-static zstd-dev zstd-static miniupnpc-dev linux-headers"
-          docker run --rm alpine:latest sh -c "apk add --no-cache $PACKAGES > /dev/null 2>&1 && apk info 2>/dev/null" | sort > current-packages.txt
+          # Only track libraries that are statically linked into the final binary.
+          # Build tooling (cmake, gcc, wget, etc.) is irrelevant to the output image.
+          LIBS="openssl-libs-static zlib-static zstd-static miniupnpc-dev boost${BOOST_PKG_VERSION}-static"
+          docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null; for pkg in $LIBS; do apk search -x \$pkg 2>/dev/null | head -1; done" | grep -v '^$' | sort > current-packages.txt
 
       - name: Check for Changes
         id: check
@@ -68,7 +70,7 @@ jobs:
             echo "i2pd-${{ steps.get_versions.outputs.i2pd }}"
             echo "mimalloc-${{ steps.get_versions.outputs.mimalloc }}"
             echo ""
-            echo "# Alpine Dependencies"
+            echo "# Library Dependencies"
             cat current-packages.txt
           } > meta.txt
           CONTENT=$(cat meta.txt | base64 -w 0)
