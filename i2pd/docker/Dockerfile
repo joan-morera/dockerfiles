@@ -5,16 +5,19 @@
 # Stage 1: Builder
 FROM alpine:latest AS builder
 
+ARG BOOST_PKG_VERSION
+
 RUN apk add --no-cache \
     build-base \
     cmake \
     wget \
     ca-certificates \
-    boost-dev \
-    boost-static \
+    boost${BOOST_PKG_VERSION}-dev \
+    boost${BOOST_PKG_VERSION}-static \
     openssl-dev \
     openssl-libs-static \
     zlib-dev \
+    zlib-static \
     zstd-dev \
     zstd-static \
     miniupnpc-dev \
@@ -24,7 +27,7 @@ ARG BUILDARCH
 ARG TARGETARCH
 ARG ARM64_VARIANT=generic
 ARG I2PD_VERSION
-ARG MIMALLOC_VERSION=v3.1.5
+ARG MIMALLOC_VERSION
 
 # Common security hardening and LTO flags (optimization level is architecture-specific).
 # Removed: -fno-plt (no-op with -static), -fgraphite-identity and -floop-nest-optimize

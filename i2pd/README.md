@@ -40,7 +40,8 @@ With the RPi4 build running as a Floodfill, with around 50 active tunnels and 10
 **Automatic rebuilds** when:
 - A new i2pd version is released.
 - mimalloc is updated.
-- Alpine package versions change.
+- A newer Boost version becomes available on Alpine.
+- Any other Alpine package version changes.
 
 ## Usage
 

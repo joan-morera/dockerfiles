@@ -20,6 +20,7 @@ jobs:
       version_metadata: ${{ steps.meta.outputs.content }}
       i2pd_version: ${{ steps.get_versions.outputs.i2pd }}
       mimalloc_version: ${{ steps.get_versions.outputs.mimalloc }}
+      boost_pkg_version: ${{ steps.get_versions.outputs.boost_pkg_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -29,13 +30,16 @@ jobs:
         run: |
           I2PD=$(git ls-remote --tags --sort='v:refname' https://github.com/PurpleI2P/i2pd.git | grep "refs/tags/2" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
           MIMALLOC=$(git ls-remote --tags --sort='v:refname' https://github.com/microsoft/mimalloc.git | grep "refs/tags/v" | tail -n1 | sed 's/.*\///' | sed 's/\^{}//')
+          BOOST_PKG_VERSION=$(docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null && apk search -q 'boost[0-9]*-static' 2>/dev/null | grep -oE '^boost[0-9.]+' | sort -V | tail -1 | sed 's/boost//'")
           echo "i2pd=${I2PD}" >> $GITHUB_OUTPUT
           echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
+          echo "boost_pkg_version=${BOOST_PKG_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Check for package updates (Alpine)
         id: get_pkgs
         run: |
-          PACKAGES="build-base cmake wget ca-certificates boost-dev boost-static openssl-dev openssl-libs-static zlib-dev zstd-dev zstd-static miniupnpc-dev linux-headers"
+          BOOST_PKG_VERSION="${{ steps.get_versions.outputs.boost_pkg_version }}"
+          PACKAGES="build-base cmake wget ca-certificates boost${BOOST_PKG_VERSION}-dev boost${BOOST_PKG_VERSION}-static openssl-dev openssl-libs-static zlib-dev zlib-static zstd-dev zstd-static miniupnpc-dev linux-headers"
           docker run --rm alpine:latest sh -c "apk add --no-cache $PACKAGES > /dev/null 2>&1 && apk info 2>/dev/null" | sort > current-packages.txt
 
       - name: Check for Changes
@@ -81,5 +85,6 @@ jobs:
       build_args: |
         I2PD_VERSION=${{ needs.check-versions.outputs.i2pd_version }}
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_version }}
+        BOOST_PKG_VERSION=${{ needs.check-versions.outputs.boost_pkg_version }}
       rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
