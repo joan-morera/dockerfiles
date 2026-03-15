@@ -1,4 +1,4 @@
-name: Build and Publish qBittorrent
+name: qBittorrent | Build and Publish
 
 on:
   workflow_dispatch:

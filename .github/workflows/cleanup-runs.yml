@@ -1,4 +1,4 @@
-name: Cleanup Old Workflow Runs
+name: System | Cleanup Old Runs
 
 on:
   schedule:

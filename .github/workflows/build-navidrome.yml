@@ -1,4 +1,4 @@
-name: Build Navidrome Multi-Arch
+name: Navidrome | Build and Publish
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Build and Publish Tor Bridge
+name: Tor Bridge | Build and Publish
 
 on:
   workflow_dispatch:

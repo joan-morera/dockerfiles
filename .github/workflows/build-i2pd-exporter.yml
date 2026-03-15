@@ -1,4 +1,4 @@
-name: Build and Publish I2PD Exporter
+name: I2PD Exporter | Build and Publish
 
 on:
   workflow_dispatch:

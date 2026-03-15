@@ -1,4 +1,4 @@
-name: Build and Publish Alfis
+name: Alfis | Build and Publish
 
 on:
   workflow_dispatch:

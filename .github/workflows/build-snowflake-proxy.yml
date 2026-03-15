@@ -1,4 +1,4 @@
-name: Build and Publish Snowflake Proxy
+name: Snowflake Proxy | Build and Publish
 
 on:
   workflow_dispatch:

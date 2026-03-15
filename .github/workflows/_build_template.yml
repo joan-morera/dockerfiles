@@ -1,4 +1,4 @@
-name: Reusable Container Build
+name: Template | Container Build
 
 on:
   workflow_call:
