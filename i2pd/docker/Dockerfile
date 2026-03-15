@@ -43,7 +43,7 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
       fi \
     fi && \
     echo "[BUILD] Downloading mimalloc ${MIMALLOC_VERSION}..." && \
-    wget "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
+    wget -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
     tar xvfz mimalloc.tar.gz && \
     cd mimalloc-$(echo ${MIMALLOC_VERSION} | sed 's/v//') && \
     mkdir build && cd build && \
@@ -74,7 +74,7 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     fi && \
 
     echo "[BUILD] Downloading i2pd ${I2PD_VERSION}..." && \
-    wget "https://github.com/PurpleI2P/i2pd/archive/refs/tags/${I2PD_VERSION}.tar.gz" -O i2pd.tar.gz && \
+    wget -q "https://github.com/PurpleI2P/i2pd/archive/refs/tags/${I2PD_VERSION}.tar.gz" -O i2pd.tar.gz && \
     echo "[BUILD] Extracting source..." && \
     tar xvfz i2pd.tar.gz && \
     cd i2pd-$(echo $I2PD_VERSION | sed 's/v//') && \
