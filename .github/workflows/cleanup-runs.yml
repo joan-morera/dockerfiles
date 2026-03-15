@@ -10,11 +10,34 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
+      contents: read
     steps:
       - name: Delete workflow runs older than 5 days
-        uses: Mattraiano/delete-workflow-runs-action@v2
-        with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: 5
-          keep_minimum_runs: 1
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Fetching runs older than 5 days..."
+          
+          # Calculate threshold date
+          THRESHOLD_DATE=$(date -d "5 days ago" +%Y-%m-%d)
+          echo "Threshold date: $THRESHOLD_DATE"
+          
+          # List runs created before the threshold date
+          # We purposefully exclude the currently running job by filtering ID if needed, 
+          # but usually 'gh run list' with a date filter is safe enough.
+          RUNS=$(gh run list --created "<$THRESHOLD_DATE" --limit 1000 --json databaseId -q '.[].databaseId')
+          
+          if [ -z "$RUNS" ]; then
+            echo "No runs found to delete."
+            exit 0
+          fi
+          
+          echo "Found runs to delete: $RUNS"
+          
+          for RUN_ID in $RUNS; do
+            echo "Deleting run $RUN_ID..."
+            gh run delete "$RUN_ID" || echo "Failed to delete run $RUN_ID"
+          done
+          
+          echo "Cleanup complete."
