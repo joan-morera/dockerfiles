@@ -26,6 +26,11 @@ on:
         required: true
         type: string
         description: "Content to write to package-versions.txt"
+      metadata_dir:
+        required: false
+        type: string
+        description: "Directory to write package-versions.txt (defaults to context)"
+        default: ""
 
 jobs:
   build:
@@ -99,7 +104,11 @@ jobs:
       - name: Update package-versions.txt
         shell: bash
         run: |
-          cd ${{ inputs.context }}
+          TARGET_DIR="${{ inputs.metadata_dir }}"
+          if [ -z "$TARGET_DIR" ]; then
+            TARGET_DIR="${{ inputs.context }}"
+          fi
+          cd "$TARGET_DIR"
           echo "${{ inputs.version_metadata }}" | base64 -d > package-versions.txt
           
           git config --global user.name 'github-actions[bot]'

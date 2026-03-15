@@ -78,6 +78,7 @@ jobs:
       image_name: i2pd
       context: ./i2pd/docker
       dockerfile: ./i2pd/docker/Dockerfile
+      metadata_dir: ./i2pd
       build_args: |
         I2PD_VERSION=${{ needs.check-versions.outputs.i2pd_version }}
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_version }}
