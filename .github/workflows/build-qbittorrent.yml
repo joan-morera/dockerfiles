@@ -20,6 +20,7 @@ jobs:
       rebuild_v2: ${{ steps.check.outputs.rebuild_v2 }}
       version_metadata_v1: ${{ steps.meta_v1.outputs.content }}
       version_metadata_v2: ${{ steps.meta_v2.outputs.content }}
+      version_metadata_combined: ${{ steps.meta_combined.outputs.content }}
       qbt_ver: ${{ steps.get_qbt.outputs.tag }}
       libt_v1_ver: ${{ steps.get_libt_v1.outputs.tag }}
       libt_v2_ref: ${{ steps.get_libt_v2.outputs.ref }}
@@ -144,6 +145,17 @@ jobs:
           CONTENT=$(cat meta_v2.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
+      - name: Generate Combined Version Metadata
+        id: meta_combined
+        run: |
+          {
+            cat meta_v1.txt
+            echo ""
+            cat meta_v2.txt
+          } > meta_combined.txt
+          CONTENT=$(cat meta_combined.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
+
   build-v1:
     needs: check-versions
     uses: ./.github/workflows/_build_template.yml
@@ -160,6 +172,7 @@ jobs:
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v1 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v1 }}
+      skip_repo_update: true
 
   build-v2:
     needs: check-versions
@@ -177,3 +190,29 @@ jobs:
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v2 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v2 }}
+      skip_repo_update: true
+
+  finalize:
+    needs: [check-versions, build-v1, build-v2]
+    if: always() && (needs.build-v1.result == 'success' || needs.build-v2.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update package-versions.txt
+        shell: bash
+        working-directory: ./qbittorrent
+        run: |
+          echo "${{ needs.check-versions.outputs.version_metadata_combined }}" | base64 -d > package-versions.txt
+          
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package-versions.txt
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: Update qbittorrent combined versions"
+            git pull --rebase
+            git push
+          fi

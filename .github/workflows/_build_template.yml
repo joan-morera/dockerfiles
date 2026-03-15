@@ -31,6 +31,11 @@ on:
         type: string
         description: "Directory to write package-versions.txt (defaults to context)"
         default: ""
+      skip_repo_update:
+        required: false
+        type: boolean
+        description: "Whether to skip the git push update job"
+        default: false
 
 jobs:
   build:
@@ -94,6 +99,7 @@ jobs:
 
   update-repo:
     needs: merge-tags
+    if: (!inputs.skip_repo_update) && (inputs.rebuild || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
