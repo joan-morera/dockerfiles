@@ -74,8 +74,9 @@ RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
       --disable-shared \
       --enable-nasm \
       --disable-decoder \
+      CFLAGS="${CFLAGS}" \
       && \
-    make -j$(nproc) "CFLAGS=${CFLAGS}" && \
+    make -j$(nproc) && \
     make install && \
     cd .. && rm -rf lame-src
 
@@ -91,8 +92,9 @@ RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
       --disable-shared \
       --disable-doc \
       --disable-extra-programs \
+      CFLAGS="${CFLAGS}" \
       && \
-    make -j$(nproc) "CFLAGS=${CFLAGS}" && \
+    make -j$(nproc) && \
     make install && \
     cd .. && rm -rf opus-src
 
