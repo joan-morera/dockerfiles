@@ -73,7 +73,6 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
       export CXXFLAGS_ARCH_EXTRA="-fcf-protection"; \
       echo "[BUILD] Building for AMD64 (x86_64)"; \
     fi && \
-
     echo "[BUILD] Downloading i2pd ${I2PD_VERSION}..." && \
     wget -q "https://github.com/PurpleI2P/i2pd/archive/refs/tags/${I2PD_VERSION}.tar.gz" -O i2pd.tar.gz && \
     echo "[BUILD] Extracting source..." && \
