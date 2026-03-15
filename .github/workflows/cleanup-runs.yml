@@ -24,9 +24,8 @@ jobs:
           echo "Threshold date: $THRESHOLD_DATE"
           
           # List runs created before the threshold date
-          # We purposefully exclude the currently running job by filtering ID if needed, 
-          # but usually 'gh run list' with a date filter is safe enough.
-          RUNS=$(gh run list --created "<$THRESHOLD_DATE" --limit 1000 --json databaseId -q '.[].databaseId')
+          # We explicitly provide the repository to avoid "failed to determine base repo"
+          RUNS=$(gh run list -R ${{ github.repository }} --created "<$THRESHOLD_DATE" --limit 1000 --json databaseId -q '.[].databaseId')
           
           if [ -z "$RUNS" ]; then
             echo "No runs found to delete."
@@ -37,7 +36,7 @@ jobs:
           
           for RUN_ID in $RUNS; do
             echo "Deleting run $RUN_ID..."
-            gh run delete "$RUN_ID" || echo "Failed to delete run $RUN_ID"
+            gh run delete -R ${{ github.repository }} "$RUN_ID" || echo "Failed to delete run $RUN_ID"
           done
           
           echo "Cleanup complete."
