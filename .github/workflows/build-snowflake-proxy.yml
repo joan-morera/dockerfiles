@@ -21,7 +21,7 @@ jobs:
       snowflake_sha: ${{ steps.get_snowflake.outputs.sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get latest Snowflake HEAD commit
         id: get_snowflake

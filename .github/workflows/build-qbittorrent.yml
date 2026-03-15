@@ -27,7 +27,7 @@ jobs:
       boost_v2_ver: ${{ steps.get_boost.outputs.v2 }}
       ssl_ver: ${{ steps.get_ssl.outputs.tag }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Get latest qBittorrent
         id: get_qbt
@@ -195,22 +195,4 @@ jobs:
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v2 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v2 }}
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update package-versions.txt
-        shell: bash
-        working-directory: ./qbittorrent
-        run: |
-          echo "${{ needs.check-versions.outputs.version_metadata_combined }}" | base64 -d > package-versions.txt
-          
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add package-versions.txt
-          if ! git diff --staged --quiet; then
-            git commit -m "ci: Update qbittorrent combined versions"
-            git pull --rebase
-            git push
-          fi
+      metadata_file: package-versions-lt2.txt

@@ -22,7 +22,7 @@ jobs:
       mimalloc_version: ${{ steps.get_versions.outputs.mimalloc }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get latest tags
         id: get_versions
