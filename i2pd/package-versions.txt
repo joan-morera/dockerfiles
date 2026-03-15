@@ -1,8 +1,8 @@
-# Main Application Versions
+# I2PD Versions
 i2pd-2.59.0
 mimalloc-v3.2.8
 
-# Build and Runtime Dependencies (Debian Trixie)
+# Debian Trixie Dependencies
 ca-certificates-20250419
 libboost-date-time1.88-dev-1.88.0-1
 libboost-filesystem1.88-dev-1.88.0-1
