@@ -22,6 +22,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libssl-dev \
     libzstd-dev \
     libminiupnpc-dev \
+    && echo "show-progress = off" >> /etc/wgetrc \
     && rm -rf /var/lib/apt/lists/*
 
 # Get the i2pd version from a build argument

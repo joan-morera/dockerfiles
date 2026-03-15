@@ -27,7 +27,8 @@ RUN pacman -Syu --noconfirm && \
     nodejs \
     npm \
     python \
-    tzdata
+    tzdata && \
+    echo "show-progress = off" >> /etc/wgetrc
 
 # Arguments (Versions = Commit SHAs)
 ARG NAVIDROME_VERSION

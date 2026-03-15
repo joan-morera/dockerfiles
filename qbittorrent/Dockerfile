@@ -27,6 +27,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     zlib1g-dev \
     libzstd-dev \
     zstd \
+    aria2 \
+    && echo "show-progress = off" >> /etc/wgetrc \
     && rm -rf /var/lib/apt/lists/*
 
 # Arguments (Versions)
@@ -59,7 +61,7 @@ WORKDIR /build
 # -----------------------------------------------------------------------------
 ARG TARGETARCH
 RUN echo "[BUILD] Building OpenSSL ${OPENSSL_VERSION} for ${TARGETARCH}..." && \
-    wget -q "https://github.com/openssl/openssl/archive/refs/tags/${OPENSSL_VERSION}.tar.gz" -O openssl.tar.gz && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://github.com/openssl/openssl/archive/refs/tags/${OPENSSL_VERSION}.tar.gz" -o openssl.tar.gz && \
     tar xzf openssl.tar.gz && \
     cd openssl-openssl-$(echo $OPENSSL_VERSION | sed 's/openssl-//') && \
     # Determine Architecture
@@ -79,7 +81,7 @@ RUN echo "[BUILD] Building OpenSSL ${OPENSSL_VERSION} for ${TARGETARCH}..." && \
 # 3. Build Mimalloc (Static)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
-    wget -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -o mimalloc.tar.gz && \
     tar xzf mimalloc.tar.gz && \
     cd mimalloc-$(echo $MIMALLOC_VERSION | sed 's/v//') && \
     mkdir build && cd build && \
@@ -126,7 +128,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
     QT_VER_CLEAN=$(echo $QT_VERSION | sed 's/v//') && \
     QT_VER_SHORT=$(echo $QT_VER_CLEAN | cut -d. -f1-2) && \
-    wget -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qt.tar.xz && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qt.tar.xz && \
     tar xf qt.tar.xz && \
     cd qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Configure for static build
@@ -162,7 +164,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     cmake --install . && \
     cd .. && rm -rf qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Build qttools (needed for LinguistTools)
-    wget -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qttools.tar.xz && \
+    aria2c -x 16 --max-connection-per-server=16 --min-split-size=1M -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qttools.tar.xz && \
     tar xf qttools.tar.xz && \
     cd qttools-everywhere-src-${QT_VER_CLEAN} && \
     /usr/local/bin/qt-configure-module . && \
