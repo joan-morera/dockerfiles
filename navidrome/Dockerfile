@@ -27,8 +27,7 @@ RUN pacman -Syu --noconfirm && \
     nodejs \
     npm \
     python \
-    tzdata \
-    aria2 && \
+    tzdata && \
     echo "show-progress = off" >> /etc/wgetrc
 
 # Arguments (Versions = Commit SHAs)
@@ -122,7 +121,7 @@ RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
 # 3. Build FFmpeg - From Git (GitHub Mirror)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
-    aria2c -x 16 -q "https://github.com/FFmpeg/FFmpeg/archive/${FFMPEG_VERSION}.tar.gz" -o ffmpeg.tar.gz && \
+    wget -q "https://github.com/FFmpeg/FFmpeg/archive/${FFMPEG_VERSION}.tar.gz" -O ffmpeg.tar.gz && \
     tar xzf ffmpeg.tar.gz && \
     mv FFmpeg-* ffmpeg-src && \
     cd ffmpeg-src && \
@@ -189,7 +188,7 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
 # 4. Build Navidrome - From GitHub (HEAD)
 # -----------------------------------------------------------------------------
 RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
-    aria2c -x 16 -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -o navidrome.tar.gz && \
+    wget -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -o navidrome.tar.gz && \
     tar xzf navidrome.tar.gz && \
     mv navidrome-${NAVIDROME_VERSION} navidrome-src && \
     cd navidrome-src && \
