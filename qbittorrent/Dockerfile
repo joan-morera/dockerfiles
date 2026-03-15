@@ -128,7 +128,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
     QT_VER_CLEAN=$(echo $QT_VERSION | sed 's/v//') && \
     QT_VER_SHORT=$(echo $QT_VER_CLEAN | cut -d. -f1-2) && \
-    aria2c -x 4 --max-connection-per-server=4 --min-split-size=1M --summary-interval=0 "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qt.tar.xz && \
+    aria2c -x 16 -q --content-disposition=false "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qt.tar.xz && \
     tar xf qt.tar.xz && \
     cd qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Configure for static build
@@ -163,7 +163,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     cmake --install . && \
     cd .. && rm -rf qtbase-everywhere-src-${QT_VER_CLEAN} && \
     # Build qttools (needed for LinguistTools)
-    aria2c -x 4 --max-connection-per-server=4 --min-split-size=1M --summary-interval=0 "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qttools.tar.xz && \
+    aria2c -x 16 -q --content-disposition=false "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qttools-everywhere-src-${QT_VER_CLEAN}.tar.xz" -o qttools.tar.xz && \
     tar xf qttools.tar.xz && \
     cd qttools-everywhere-src-${QT_VER_CLEAN} && \
     /usr/local/bin/qt-configure-module . && \
