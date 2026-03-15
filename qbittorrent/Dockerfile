@@ -101,10 +101,8 @@ RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
 # -----------------------------------------------------------------------------
 # Boost formatting: boost-1.88.0 -> 1.88.0
 RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
-    BOOST_VER_CLEAN=$(echo $BOOST_VERSION | sed 's/boost-//') && \
-    BOOST_VER_CLEAN=$(echo $BOOST_VERSION | sed 's/boost-//') && \
-    git clone --depth 1 --branch ${BOOST_VERSION} --recurse-submodules https://github.com/boostorg/boost.git boost-${BOOST_VERSION} && \
-    cd boost-${BOOST_VERSION} && \
+    git clone --depth 1 --branch ${BOOST_VERSION} --recurse-submodules https://github.com/boostorg/boost.git boost-src && \
+    cd boost-src && \
     ./bootstrap.sh --prefix=/usr/local && \
     ./b2 -j$(nproc) install \
       variant=release \
@@ -118,7 +116,7 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
       --with-date_time \
       --with-chrono \
     && \
-    cd .. && rm -rf boost*
+    cd .. && rm -rf boost-src
 
 # -----------------------------------------------------------------------------
 # 5. Build Qt6 (Static, Minimal)

@@ -61,7 +61,7 @@ jobs:
       - name: Get Boost Versions
         id: get_boost
         run: |
-          V1=$(git ls-remote --tags --sort='v:refname' https://github.com/boostorg/boost.git | grep "refs/tags/boost-1.86" | tail -n1 | sed 's/.*\///')
+          V1=$(git ls-remote --tags --sort='v:refname' https://github.com/boostorg/boost.git | grep "refs/tags/boost-1.86" | grep -v "beta\|rc\|alpha" | tail -n1 | sed 's/.*\///')
           V2=$(git ls-remote --tags --sort='v:refname' https://github.com/boostorg/boost.git | grep -E "refs/tags/boost-[0-9]+" | grep -v "beta\|rc\|alpha" | tail -n1 | sed 's/.*\///')
           echo "v1=${V1}" >> $GITHUB_OUTPUT
           echo "v2=${V2}" >> $GITHUB_OUTPUT
