@@ -20,15 +20,12 @@ jobs:
       rebuild_v2: ${{ steps.check.outputs.rebuild_v2 }}
       version_metadata_v1: ${{ steps.meta_v1.outputs.content }}
       version_metadata_v2: ${{ steps.meta_v2.outputs.content }}
-      version_metadata_combined: ${{ steps.meta_combined.outputs.content }}
       qbt_ver: ${{ steps.get_qbt.outputs.tag }}
-      libt_v1_ver: ${{ steps.get_libt_v1.outputs.tag }}
       libt_v2_ref: ${{ steps.get_libt_v2.outputs.ref }}
       qt_ver: ${{ steps.get_qt.outputs.tag }}
       boost_v1_ver: ${{ steps.get_boost.outputs.v1 }}
       boost_v2_ver: ${{ steps.get_boost.outputs.v2 }}
       ssl_ver: ${{ steps.get_ssl.outputs.tag }}
-      mimalloc_ver: ${{ steps.get_mimalloc.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
 
@@ -90,20 +87,39 @@ jobs:
       - name: Check for Changes
         id: check
         run: |
-          FILE="package-versions.txt"
+          FILE_V1="package-versions-lt1.txt"
+          FILE_V2="package-versions-lt2.txt"
           REBUILD_V1=false
           REBUILD_V2=false
           
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             REBUILD_V1=true
             REBUILD_V2=true
-          elif [ ! -f $FILE ]; then
-            REBUILD_V1=true
-            REBUILD_V2=true
           else
-            if ! grep -q "${{ steps.get_qbt.outputs.tag }}" $FILE; then REBUILD_V1=true; REBUILD_V2=true; fi
-            if ! grep -q "${{ steps.get_libt_v1.outputs.tag }}" $FILE; then REBUILD_V1=true; fi
-            if ! grep -q "${{ steps.get_libt_v2.outputs.ref }}" $FILE; then REBUILD_V2=true; fi
+            # V1 check
+            if [ ! -f "$FILE_V1" ]; then
+              REBUILD_V1=true
+            else
+              if ! grep -q "${{ steps.get_qbt.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! grep -q "${{ steps.get_libt_v1.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! grep -q "${{ steps.get_qt.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! grep -q "${{ steps.get_boost.outputs.v1 }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              if ! diff -q current-packages.txt <(grep -A 999 "System Dependencies" "$FILE_V1" | tail -n +2) > /dev/null; then REBUILD_V1=true; fi
+            fi
+            # V2 check
+            if [ ! -f "$FILE_V2" ]; then
+              REBUILD_V2=true
+            else
+              if ! grep -q "${{ steps.get_qbt.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! grep -q "${{ steps.get_libt_v2.outputs.ref }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! grep -q "${{ steps.get_qt.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! grep -q "${{ steps.get_boost.outputs.v2 }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              if ! diff -q current-packages.txt <(grep -A 999 "System Dependencies" "$FILE_V2" | tail -n +2) > /dev/null; then REBUILD_V2=true; fi
+            fi
           fi
           
           echo "rebuild_v1=$REBUILD_V1" >> $GITHUB_OUTPUT
@@ -145,17 +161,6 @@ jobs:
           CONTENT=$(cat meta_v2.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
-      - name: Generate Combined Version Metadata
-        id: meta_combined
-        run: |
-          {
-            cat meta_v1.txt
-            echo ""
-            cat meta_v2.txt
-          } > meta_combined.txt
-          CONTENT=$(cat meta_combined.txt | base64 -w 0)
-          echo "content=$CONTENT" >> $GITHUB_OUTPUT
-
   build-v1:
     needs: check-versions
     uses: ./.github/workflows/_build_template.yml
@@ -172,7 +177,7 @@ jobs:
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v1 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v1 }}
-      skip_repo_update: true
+      metadata_file: package-versions-lt1.txt
 
   build-v2:
     needs: check-versions
@@ -190,13 +195,6 @@ jobs:
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v2 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v2 }}
-      skip_repo_update: true
-
-  finalize:
-    needs: [check-versions, build-v1, build-v2]
-    if: always() && (needs.build-v1.result == 'success' || needs.build-v2.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
