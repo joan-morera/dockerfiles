@@ -137,6 +137,9 @@ RUN mkdir -p /dist/usr/lib /dist/lib64 /dist/etc/i2pd /dist/tmp /dist/home/i2pd/
 
 # Stage 2: Final image (Scratch)
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="i2pd (C++ I2P router)"
+LABEL org.opencontainers.image.licenses="BSD-3-Clause"
 LABEL maintainer="JoanMorera"
 
 ARG I2PD_VERSION

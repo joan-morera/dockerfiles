@@ -1,258 +1,85 @@
 name: Build and Publish I2PD
-run-name: Build I2PD
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # Runs every day at 0 AM UTC (main)
+    - cron: '0 0 * * *'
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  check-base-packages:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./i2pd
-    outputs:
-      changed: ${{ steps.check_changes.outputs.changed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
-      - name: Check for package updates
-        run: |
-          # Define packages to check
-          PACKAGES="zlib1g-dev libboost-filesystem1.88-dev libboost-system1.88-dev libboost-program-options1.88-dev libboost-date-time1.88-dev libboost-thread1.88-dev libboost-iostreams1.88-dev libssl-dev libzstd-dev libminiupnpc-dev libstdc++-14-dev libc6 libgcc-s1 ca-certificates"
-
-          # Query repository metadata directly
-          docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
-          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
-      - name: Compare with stored package list
-        id: check_changes
-        run: |
-          if [ ! -f package-versions.txt ]; then
-            echo "package-versions.txt does not exist, treating as changed"
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            grep -vE "^(i2pd-|mimalloc-|distroless-|#)" package-versions.txt | grep -v "^$" | sort > stored-packages.txt
-            if ! cmp -s stored-packages.txt current-packages.txt; then
-              echo "Package list has changed."
-              echo "Changed packages:"
-              diff -u stored-packages.txt current-packages.txt || true
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "Package list has not changed."
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
   check-versions:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./i2pd
     outputs:
-      new_version_detected: ${{ steps.check.outputs.new_version_detected }}
-      latest_tag: ${{ steps.get_latest_release.outputs.tag }}
-      latest_mimalloc_tag: ${{ steps.get_latest_mimalloc.outputs.tag }}
+      rebuild: ${{ steps.check.outputs.rebuild }}
+      version_metadata: ${{ steps.meta.outputs.content }}
+      i2pd_version: ${{ steps.get_versions.outputs.i2pd }}
+      mimalloc_version: ${{ steps.get_versions.outputs.mimalloc }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Get latest i2pd tag
-        id: get_latest_release
+
+      - name: Get latest tags
+        id: get_versions
         run: |
-          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/PurpleI2P/i2pd.git | grep "refs/tags/2" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
-          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
-      - name: Get latest mimalloc tag
-        id: get_latest_mimalloc
+          I2PD=$(git ls-remote --tags --sort='v:refname' https://github.com/PurpleI2P/i2pd.git | grep "refs/tags/2" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          MIMALLOC=$(git ls-remote --tags --sort='v:refname' https://github.com/microsoft/mimalloc.git | grep "refs/tags/v" | tail -n1 | sed 's/.*\///' | sed 's/\^{}//')
+          echo "i2pd=${I2PD}" >> $GITHUB_OUTPUT
+          echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
+
+      - name: Check for package updates (Apt-cache policy)
+        id: get_pkgs
         run: |
-          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/microsoft/mimalloc.git | grep "refs/tags/v" | tail -n1 | sed 's/.*\///' | sed 's/\^{}//')
-          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
-      - name: Get current versions from package-versions.txt
-        id: get_current_version
-        run: |
-          echo "version=$(grep "^i2pd-" package-versions.txt | cut -d- -f2)" >> $GITHUB_OUTPUT
-          echo "mimalloc_version=$(grep "^mimalloc-" package-versions.txt | cut -d- -f2 || echo "")" >> $GITHUB_OUTPUT
-      - name: Check for new version
+          PACKAGES="zlib1g-dev libboost-filesystem1.88-dev libboost-system1.88-dev libboost-program-options1.88-dev libboost-date-time1.88-dev libboost-thread1.88-dev libboost-iostreams1.88-dev libssl-dev libzstd-dev libminiupnpc-dev libstdc++-14-dev libc6 libgcc-s1 ca-certificates"
+          docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
+          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
+
+      - name: Check for Changes
         id: check
         run: |
-          if [[ "${{ steps.get_latest_release.outputs.tag }}" != "" && "${{ steps.get_latest_release.outputs.tag }}" != "${{ steps.get_current_version.outputs.version }}" ]]; then
-            echo "New i2pd tag detected: ${{ steps.get_latest_release.outputs.tag }}"
-            echo "new_version_detected=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ steps.get_latest_mimalloc.outputs.tag }}" != "" && "${{ steps.get_latest_mimalloc.outputs.tag }}" != "${{ steps.get_current_version.outputs.mimalloc_version }}" ]]; then
-            echo "New mimalloc version detected: ${{ steps.get_latest_mimalloc.outputs.tag }}"
-            echo "new_version_detected=true" >> $GITHUB_OUTPUT
-          else
-            echo "No new version detected."
-            echo "new_version_detected=false" >> $GITHUB_OUTPUT
+          FILE="package-versions.txt"
+          REBUILD=false
+          I2PD="${{ steps.get_versions.outputs.i2pd }}"
+          MIMALLOC="${{ steps.get_versions.outputs.mimalloc }}"
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REBUILD=true
+          elif [ ! -f $FILE ] || ! grep -q "$I2PD" $FILE || ! grep -q "$MIMALLOC" $FILE; then
+            REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(i2pd-|mimalloc-|distroless-|#)" $FILE | grep -v "^$" | sort); then
+             REBUILD=true
           fi
+          
+          echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
 
-  # ---------------------------------------------------------------------------
-  # Build Jobs (parallel per-architecture, like qbittorrent)
-  # ---------------------------------------------------------------------------
-  build-generic:
-    needs: [check-base-packages, check-versions]
-    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            suffix: amd64
-            arm64_variant: generic
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: arm64
-            arm64_variant: generic
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        working-directory: ./i2pd
-    env:
-      IMAGE_NAME: i2pd
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push I2PD (${{ matrix.suffix }})
-        uses: docker/build-push-action@v5
-        with:
-          context: ./i2pd/docker
-          file: ./i2pd/docker/Dockerfile
-          platforms: ${{ matrix.platform }}
-          push: true
-          provenance: false
-          build-args: |
-            I2PD_VERSION=${{ needs.check-versions.outputs.latest_tag }}
-            MIMALLOC_VERSION=${{ needs.check-versions.outputs.latest_mimalloc_tag }}
-            ARM64_VARIANT=${{ matrix.arm64_variant }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ matrix.suffix }}
-          cache-from: type=gha,scope=build-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=build-${{ matrix.suffix }}
-
-  build-rpi4:
-    needs: [check-base-packages, check-versions]
-    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04-arm
-    defaults:
-      run:
-        working-directory: ./i2pd
-    env:
-      IMAGE_NAME: i2pd
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push I2PD (RPi4)
-        uses: docker/build-push-action@v5
-        with:
-          context: ./i2pd/docker
-          file: ./i2pd/docker/Dockerfile
-          platforms: linux/arm64
-          push: true
-          provenance: false
-          build-args: |
-            I2PD_VERSION=${{ needs.check-versions.outputs.latest_tag }}
-            MIMALLOC_VERSION=${{ needs.check-versions.outputs.latest_mimalloc_tag }}
-            ARM64_VARIANT=rpi4
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:rpi4
-          cache-from: type=gha,scope=build-rpi4
-          cache-to: type=gha,mode=max,scope=build-rpi4
-
-  # ---------------------------------------------------------------------------
-  # Merge Tags
-  # ---------------------------------------------------------------------------
-  merge-tags:
-    needs: [build-generic]
-    if: always() && needs.build-generic.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create and push manifest for latest
+      - name: Generate Version Metadata
+        id: meta
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/i2pd"
-          docker buildx imagetools create -t $IMAGE:latest \
-            $IMAGE:amd64 \
-            $IMAGE:arm64
+          {
+            echo "# I2PD Versions"
+            echo "i2pd-${{ steps.get_versions.outputs.i2pd }}"
+            echo "mimalloc-${{ steps.get_versions.outputs.mimalloc }}"
+            echo ""
+            echo "# Debian Trixie Dependencies"
+            cat current-packages.txt
+          } > meta.txt
+          CONTENT=$(cat meta.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
-  # ---------------------------------------------------------------------------
-  # Update Repo
-  # ---------------------------------------------------------------------------
-  update-repo:
-    needs: [check-base-packages, check-versions, merge-tags, build-rpi4]
-    if: always() && needs.merge-tags.result == 'success'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./i2pd
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update version and package files and commit
-        run: |
-          # Only update packages list if base packages changed
-          if [ "${{ needs.check-base-packages.outputs.changed }}" = "true" ]; then
-            PACKAGES="zlib1g-dev libboost-filesystem1.88-dev libboost-system1.88-dev libboost-program-options1.88-dev libboost-date-time1.88-dev libboost-thread1.88-dev libboost-iostreams1.88-dev libssl-dev libzstd-dev libminiupnpc-dev libstdc++-14-dev libc6 libgcc-s1 ca-certificates"
-            docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
-            awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > packages-temp.txt
-          fi
-
-          LATEST_I2PD="${{ needs.check-versions.outputs.latest_tag }}"
-          MIMALLOC_VER="${{ needs.check-versions.outputs.latest_mimalloc_tag }}"
-
-          if [ "${{ needs.check-base-packages.outputs.changed }}" = "true" ]; then
-            echo "# Main Application Versions" > package-versions.txt
-            echo "i2pd-${LATEST_I2PD}" >> package-versions.txt
-            echo "mimalloc-${MIMALLOC_VER}" >> package-versions.txt
-            echo "" >> package-versions.txt
-            echo "# Build and Runtime Dependencies (Debian Trixie)" >> package-versions.txt
-            cat packages-temp.txt >> package-versions.txt
-            rm packages-temp.txt
-          else
-            sed -i "s/^i2pd-.*/i2pd-${LATEST_I2PD}/" package-versions.txt
-            if grep -q "^mimalloc-" package-versions.txt; then
-              sed -i "s/^mimalloc-.*/mimalloc-${MIMALLOC_VER}/" package-versions.txt
-            else
-              echo "mimalloc-${MIMALLOC_VER}" >> package-versions.txt
-            fi
-            
-            # Remove distroless line proactively if it's there
-            sed -i '/^distroless-/d' package-versions.txt
-          fi
-
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add package-versions.txt
-          if ! git diff --staged --quiet; then
-            git commit -m "ci: Update i2pd version and package list"
-            git pull --rebase
-            git push
-          fi
+  build:
+    needs: check-versions
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: i2pd
+      context: ./i2pd/docker
+      dockerfile: ./i2pd/docker/Dockerfile
+      build_args: |
+        I2PD_VERSION=${{ needs.check-versions.outputs.i2pd_version }}
+        MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_version }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}

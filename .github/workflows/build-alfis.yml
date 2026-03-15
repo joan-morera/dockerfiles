@@ -3,198 +3,75 @@ name: Build and Publish Alfis
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # Runs every day at 0 AM UTC
+    - cron: '0 0 * * *'
 
 permissions:
   contents: write
   packages: write
 
-
 jobs:
-  check-base-packages:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./alfis
-    outputs:
-      changed: ${{ steps.check_changes.outputs.changed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
-      - name: Check for latest package versions
-        run: |
-          docker pull alpine:latest
-          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk list rust cargo openssl-libs-static zlib-static pkgconf" | awk '{print $1}' | sort > current-packages.txt
-      - name: Compare with stored package list
-        id: check_changes
-        run: |
-          if [ ! -f package-versions.txt ]; then
-            echo "package-versions.txt does not exist, treating as changed"
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            grep -vE "^(alfis-|#)" package-versions.txt | grep -v "^$" | sort > stored-packages.txt
-            if ! cmp -s stored-packages.txt current-packages.txt; then
-              echo "Package list has changed."
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "Package list has not changed."
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
   check-versions:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./alfis
     outputs:
-      new_version_detected: ${{ steps.check.outputs.new_version_detected }}
-      latest_tag: ${{ steps.get_latest_release.outputs.tag }}
+      rebuild: ${{ steps.check.outputs.rebuild }}
+      version_metadata: ${{ steps.meta.outputs.content }}
+      alfis_version: ${{ steps.get_latest_release.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Get latest alfis release tag
         id: get_latest_release
         run: |
           LATEST_TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/Revertron/Alfis.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
           echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
-      - name: Get current version from package-versions.txt
-        id: get_current_version
+
+      - name: Check for latest package versions
+        id: get_pkgs
         run: |
-          echo "version=$(grep "^alfis-" package-versions.txt | cut -d- -f2)" >> $GITHUB_OUTPUT
-      - name: Check for new version
+          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk list rust cargo openssl-libs-static zlib-static pkgconf" | awk '{print $1}' | sort > current-packages.txt
+
+      - name: Check for Changes
         id: check
         run: |
-          if [[ "${{ steps.get_latest_release.outputs.tag }}" != "" && "${{ steps.get_latest_release.outputs.tag }}" != "${{ steps.get_current_version.outputs.version }}" ]]; then
-            echo "new_version_detected=true" >> $GITHUB_OUTPUT
-          else
-            echo "new_version_detected=false" >> $GITHUB_OUTPUT
+          FILE="package-versions.txt"
+          REBUILD=false
+          VERSION="${{ steps.get_latest_release.outputs.tag }}"
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REBUILD=true
+          elif [ ! -f $FILE ] || ! grep -q "$VERSION" $FILE; then
+            REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(alfis-|#)" $FILE | grep -v "^$" | sort); then
+             REBUILD=true
           fi
+          
+          echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
 
-  build-images:
-    needs: [check-base-packages, check-versions]
-    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            tag_suffix: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            tag_suffix: arm64
-          - platform: linux/arm/v7
-            runner: ubuntu-latest
-            tag_suffix: armv7
-          - platform: linux/386
-            runner: ubuntu-latest
-            tag_suffix: 386
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        working-directory: ./alfis
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push Alfis (${{ matrix.tag_suffix }})
-        uses: docker/build-push-action@v5
-        with:
-          context: ./alfis
-          file: ./alfis/Dockerfile
-          platforms: ${{ matrix.platform }}
-          push: true
-          provenance: false
-          build-args: |
-             ALFIS_VERSION=${{ needs.check-versions.outputs.latest_tag }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/alfis:${{ matrix.tag_suffix }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:${{ matrix.tag_suffix }}
-          cache-from: type=gha,scope=build-${{ matrix.tag_suffix }}
-          cache-to: type=gha,mode=min,scope=build-${{ matrix.tag_suffix }}
-
-  merge-tags:
-    needs: [build-images]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create and push manifest for release
+      - name: Generate Version Metadata
+        id: meta
         run: |
-          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/alfis:latest \
-            ghcr.io/${{ github.repository_owner }}/alfis:amd64 \
-            ghcr.io/${{ github.repository_owner }}/alfis:arm64 \
-            ghcr.io/${{ github.repository_owner }}/alfis:armv7 \
-            ghcr.io/${{ github.repository_owner }}/alfis:386
-          
-          docker buildx imagetools create -t ${{ secrets.DOCKERHUB_USERNAME }}/alfis:latest \
-            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:armv7 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/alfis:386
+          {
+            echo "# Alfis Versions"
+            echo "alfis-${{ steps.get_latest_release.outputs.tag }}"
+            echo ""
+            echo "# Build Dependencies"
+            cat current-packages.txt
+          } > meta.txt
+          CONTENT=$(cat meta.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
-  update-repo:
-    needs: [check-base-packages, check-versions, build-images, merge-tags]
-    if: needs.check-base-packages.outputs.changed == 'true' || needs.check-versions.outputs.new_version_detected == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./alfis
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update version and package files and commit
-        run: |
-          if [ "${{ needs.check-base-packages.outputs.changed }}" = "true" ]; then
-            docker run --rm alpine:latest sh -c "apk update >/dev/null && apk list rust cargo openssl-libs-static zlib-static pkgconf" | awk '{print $1}' | sort > packages-temp.txt
-          fi
-
-          LATEST_ALFIS="${{ needs.check-versions.outputs.latest_tag }}"
-          
-          if [ "${{ needs.check-base-packages.outputs.changed }}" = "true" ]; then
-             echo "# Main Application Versions" > package-versions.txt
-             echo "alfis-${LATEST_ALFIS}" >> package-versions.txt
-             echo "" >> package-versions.txt
-             echo "# Only critical build/runtime deps: rust, cargo, openssl-libs-static, zlib-static, pkgconf" >> package-versions.txt
-             cat packages-temp.txt >> package-versions.txt
-             rm packages-temp.txt
-          else
-             sed -i "s/^alfis-.*/alfis-${LATEST_ALFIS}/" package-versions.txt
-          fi
-          
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add package-versions.txt
-          if ! git diff --staged --quiet; then
-            git commit -m "ci: Update Alfis version and package list"
-            git pull --rebase
-            git push
-          fi
+  build:
+    needs: check-versions
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: alfis
+      context: ./alfis
+      dockerfile: ./alfis/Dockerfile
+      build_args: |
+        ALFIS_VERSION=${{ needs.check-versions.outputs.alfis_version }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}

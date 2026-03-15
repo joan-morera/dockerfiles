@@ -3,7 +3,7 @@ name: Build and Publish Tor Bridge
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # Runs every day at 0 AM UTC
+    - cron: '0 0 * * *'
 
 permissions:
   contents: write
@@ -16,206 +16,70 @@ jobs:
       run:
         working-directory: ./tor-bridge
     outputs:
-      new_version_detected: ${{ steps.check.outputs.new_version_detected }}
+      rebuild: ${{ steps.check.outputs.rebuild }}
+      version_metadata: ${{ steps.meta.outputs.content }}
       lyrebird_sha: ${{ steps.get_lyrebird.outputs.sha }}
       tor_sha: ${{ steps.get_tor.outputs.sha }}
-      distroless_digest: ${{ steps.get_distroless.outputs.digest }}
-      libcap_dev: ${{ steps.get_pkgs.outputs.libcap_dev }}
-      libevent_dev: ${{ steps.get_pkgs.outputs.libevent_dev }}
-      liblz4_dev: ${{ steps.get_pkgs.outputs.liblz4_dev }}
-      liblzma_dev: ${{ steps.get_pkgs.outputs.liblzma_dev }}
-      libscrypt_dev: ${{ steps.get_pkgs.outputs.libscrypt_dev }}
-      libseccomp_dev: ${{ steps.get_pkgs.outputs.libseccomp_dev }}
-      libssl_dev: ${{ steps.get_pkgs.outputs.libssl_dev }}
-      libzstd_dev: ${{ steps.get_pkgs.outputs.libzstd_dev }}
-      tor_geoipdb: ${{ steps.get_pkgs.outputs.tor_geoipdb }}
-      zlib1g_dev: ${{ steps.get_pkgs.outputs.zlib1g_dev }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Get latest Lyrebird HEAD commit
         id: get_lyrebird
-        run: |
-          SHA=$(git ls-remote https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git HEAD | awk '{print $1}')
-          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+        run: echo "sha=$(git ls-remote https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Get latest Tor HEAD commit
         id: get_tor
-        run: |
-          SHA=$(git ls-remote https://gitlab.torproject.org/tpo/core/tor.git HEAD | awk '{print $1}')
-          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+        run: echo "sha=$(git ls-remote https://gitlab.torproject.org/tpo/core/tor.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
 
-      - name: Get latest Distroless digest
-        id: get_distroless
-        run: |
-          DIGEST=$(docker manifest inspect gcr.io/distroless/base-debian13:debug-nonroot | jq -r '.manifests[0].digest')
-          echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
-
-      - name: Get Debian build dependency versions
+      - name: Get Debian build dependency versions (Apt-cache policy)
         id: get_pkgs
         run: |
-          docker pull debian:trixie-slim
-          OUTPUT=$(docker run --rm debian:trixie-slim sh -c "
-            apt-get update -qq > /dev/null
-            for pkg in libcap-dev libevent-dev liblz4-dev liblzma-dev libscrypt-dev libseccomp-dev libssl-dev libzstd-dev tor-geoipdb zlib1g-dev; do
-              ver=\$(apt-cache policy \$pkg | grep Candidate | awk '{print \$2}')
-              echo \"\${pkg}=\${ver}\"
-            done
-          ")
-          echo "$OUTPUT" | while read line; do
-            PKG=$(echo $line | cut -d= -f1 | sed 's/-/_/g')
-            VER=$(echo $line | cut -d= -f2)
-            echo "${PKG}=${VER}" >> $GITHUB_OUTPUT
-          done
+          PACKAGES="libcap-dev libevent-dev liblz4-dev liblzma-dev libscrypt-dev libseccomp-dev libssl-dev libzstd-dev tor-geoipdb zlib1g-dev"
+          docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
+          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
 
-      - name: Check for changes
+      - name: Check for Changes
         id: check
         run: |
           FILE="package-versions.txt"
-          CHANGED=false
-
-          check_ver() {
-            NAME=$1
-            NEW=$2
-            OLD=$(grep "^${NAME}-" $FILE | sed "s/^${NAME}-//" | head -1 || echo "")
-            if [ "$NEW" != "$OLD" ]; then
-              echo "Changed $NAME: $OLD -> $NEW"
-              return 0
-            fi
-            return 1
-          }
-
-          if check_ver "lyrebird" "${{ steps.get_lyrebird.outputs.sha }}"; then CHANGED=true; fi
-          if check_ver "tor" "${{ steps.get_tor.outputs.sha }}"; then CHANGED=true; fi
-          if check_ver "distroless" "${{ steps.get_distroless.outputs.digest }}"; then CHANGED=true; fi
-
+          REBUILD=false
+          L_SHA="${{ steps.get_lyrebird.outputs.sha }}"
+          T_SHA="${{ steps.get_tor.outputs.sha }}"
+          
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            CHANGED=true
+            REBUILD=true
+          elif [ ! -f $FILE ] || ! grep -q "$L_SHA" $FILE || ! grep -q "$T_SHA" $FILE; then
+            REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(lyrebird-|tor-|#)" $FILE | grep -v "^$" | sort); then
+             REBUILD=true
           fi
+          
+          echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
 
-          echo "new_version_detected=$CHANGED" >> $GITHUB_OUTPUT
+      - name: Generate Version Metadata
+        id: meta
+        run: |
+          {
+            echo "# Tor Bridge Versions"
+            echo "lyrebird-${{ steps.get_lyrebird.outputs.sha }}"
+            echo "tor-${{ steps.get_tor.outputs.sha }}"
+            echo ""
+            echo "# Build Dependencies (Debian Trixie)"
+            cat current-packages.txt
+          } > meta.txt
+          CONTENT=$(cat meta.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
-  # ---------------------------------------------------------------------------
-  # Build Jobs (parallel per-arch)
-  # ---------------------------------------------------------------------------
   build:
     needs: check-versions
-    if: needs.check-versions.outputs.new_version_detected == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            suffix: amd64
-            arm64_variant: generic
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: arm64
-            arm64_variant: generic
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: rpi4
-            arm64_variant: rpi4
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        working-directory: ./tor-bridge
-    env:
-      IMAGE_NAME: tor-bridge
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Tor Bridge (${{ matrix.suffix }})
-        uses: docker/build-push-action@v5
-        with:
-          context: ./tor-bridge
-          file: ./tor-bridge/Dockerfile
-          platforms: ${{ matrix.platform }}
-          push: true
-          provenance: false
-          build-args: |
-            LYREBIRD_VERSION=${{ needs.check-versions.outputs.lyrebird_sha }}
-            TOR_VERSION=${{ needs.check-versions.outputs.tor_sha }}
-            ARM64_VARIANT=${{ matrix.arm64_variant }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ matrix.suffix }}
-          cache-from: type=gha,scope=build-${{ matrix.suffix }}
-          cache-to: type=gha,mode=min,scope=build-${{ matrix.suffix }}
-
-  # ---------------------------------------------------------------------------
-  # Merge Tags
-  # ---------------------------------------------------------------------------
-  merge-tags:
-    needs: [build]
-    if: always() && needs.build.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to the GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create and push manifest for latest
-        run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/tor-bridge"
-          docker buildx imagetools create -t $IMAGE:latest \
-            $IMAGE:amd64 \
-            $IMAGE:arm64
-
-  # ---------------------------------------------------------------------------
-  # Update Repo
-  # ---------------------------------------------------------------------------
-  update-repo:
-    needs: [check-versions, merge-tags]
-    if: always() && needs.merge-tags.result == 'success'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./tor-bridge
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update versions file and commit
-        run: |
-          FILE="package-versions.txt"
-
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull --rebase
-
-          echo "# Tor Bridge Versions" > $FILE
-          echo "" >> $FILE
-          echo "lyrebird-${{ needs.check-versions.outputs.lyrebird_sha }}" >> $FILE
-          echo "tor-${{ needs.check-versions.outputs.tor_sha }}" >> $FILE
-          echo "distroless-${{ needs.check-versions.outputs.distroless_digest }}" >> $FILE
-          echo "" >> $FILE
-          echo "# Build Dependencies (Debian Trixie)" >> $FILE
-          echo "libcap-dev-${{ needs.check-versions.outputs.libcap_dev }}" >> $FILE
-          echo "libevent-dev-${{ needs.check-versions.outputs.libevent_dev }}" >> $FILE
-          echo "liblz4-dev-${{ needs.check-versions.outputs.liblz4_dev }}" >> $FILE
-          echo "liblzma-dev-${{ needs.check-versions.outputs.liblzma_dev }}" >> $FILE
-          echo "libscrypt-dev-${{ needs.check-versions.outputs.libscrypt_dev }}" >> $FILE
-          echo "libseccomp-dev-${{ needs.check-versions.outputs.libseccomp_dev }}" >> $FILE
-          echo "libssl-dev-${{ needs.check-versions.outputs.libssl_dev }}" >> $FILE
-          echo "libzstd-dev-${{ needs.check-versions.outputs.libzstd_dev }}" >> $FILE
-          echo "tor-geoipdb-${{ needs.check-versions.outputs.tor_geoipdb }}" >> $FILE
-          echo "zlib1g-dev-${{ needs.check-versions.outputs.zlib1g_dev }}" >> $FILE
-
-          git add $FILE
-          if ! git diff --staged --quiet; then
-            git commit -m "ci: Update tor-bridge versions"
-            git push
-          fi
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: tor-bridge
+      context: ./tor-bridge
+      dockerfile: ./tor-bridge/Dockerfile
+      build_args: |
+        LYREBIRD_VERSION=${{ needs.check-versions.outputs.lyrebird_sha }}
+        TOR_VERSION=${{ needs.check-versions.outputs.tor_sha }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}

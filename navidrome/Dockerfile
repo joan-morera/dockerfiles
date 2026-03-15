@@ -223,6 +223,9 @@ RUN mkdir -p /rootfs/etc/ssl/certs \
 # Stage 2: Final (Scratch)
 # -----------------------------------------------------------------------------
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="Navidrome Music Server"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL maintainer="JoanMorera"
 
 # Copy everything in one layer

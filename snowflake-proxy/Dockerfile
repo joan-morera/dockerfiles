@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     golang \
     gpg \
     gpg-agent \
+    && useradd -u 1000 -U -s /bin/false -d /nonexistent snowflake \
     && rm -rf /var/lib/apt/lists/*
 
 # Add Tor Project Repository (for tor-geoipdb)
@@ -45,10 +46,11 @@ RUN echo "[BUILD] Cloning Snowflake..." && \
     # Build Static Binary
     CGO_ENABLED=0 go build -o proxy -ldflags '-extldflags "-static" -w -s' .
 
-# -----------------------------------------------------------------------------
 # Stage 2: Final (Scratch)
-# -----------------------------------------------------------------------------
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="Snowflake Proxy"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="JoanMorera"
 
 # Copy Certificates
@@ -63,6 +65,12 @@ COPY --from=builder /usr/share/tor/geoip6 /usr/share/tor/geoip6
 
 # Copy Binary
 COPY --from=builder /build/snowflake/proxy/proxy /bin/proxy
+
+# Create non-root user
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+
+USER 1000:1000
 
 # Runtime Config
 ENTRYPOINT ["/bin/proxy"]

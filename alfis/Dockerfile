@@ -31,8 +31,9 @@ RUN wget "https://github.com/Revertron/Alfis/archive/refs/tags/${ALFIS_VERSION}.
 
 # Final Stage
 FROM alpine:latest
-LABEL Description="Alfis Alternative Free Identity System"
-LABEL URL="https://github.com/Revertron/Alfis/releases"
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="Alfis Alternative Free Identity System"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL maintainer="JoanMorera"
 
 ARG srv_port=4244
@@ -43,16 +44,17 @@ ARG dns_port=53
 ENV ALFIS_HOME="/var/lib/alfis"
 
 # Create user and dirs
-RUN adduser -S -h "$ALFIS_HOME" -D alfis && \
+RUN addgroup -g 1000 alfis && \
+    adduser -S -u 1000 -G alfis -h "$ALFIS_HOME" -D alfis && \
     mkdir -p "$ALFIS_HOME" && \
-    chown -R alfis:nobody "$ALFIS_HOME"
+    chown -R alfis:alfis "$ALFIS_HOME"
 
 # Copy binary
 COPY --from=builder /alfis /usr/bin/alfis
 
 # Generate default config
 RUN /usr/bin/alfis -g > /etc/alfis.conf && \
-    chown alfis:nobody /etc/alfis.conf
+    chown alfis:alfis /etc/alfis.conf
 
 EXPOSE ${srv_port}
 EXPOSE ${dns_port}

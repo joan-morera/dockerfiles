@@ -25,6 +25,9 @@ RUN echo "exporter:x:1000:1000:exporter:/:" > /etc/passwd_exporter && \
 
 # Final Stage
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
+LABEL org.opencontainers.image.description="Prometheus exporter for i2pd"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="JoanMorera"
 
 # Copy user configuration
