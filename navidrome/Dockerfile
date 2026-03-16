@@ -178,7 +178,7 @@ RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
     export CGO_CFLAGS="-I/usr/local/include/taglib -I/usr/local/include" && \
     export CGO_CFLAGS_ALLOW="--define-prefix" && \
     SHORT_SHA=$(echo ${NAVIDROME_VERSION} | cut -c1-7) && \
-    go build -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=${SHORT_SHA} -X github.com/navidrome/navidrome/resources.Tag=${SHORT_SHA}" -o navidrome . && \
+    go build -buildvcs=false -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=${SHORT_SHA} -X github.com/navidrome/navidrome/resources.Tag=${SHORT_SHA}" -o navidrome . && \
     cp navidrome /usr/local/bin/navidrome && \
     cd .. && rm -rf navidrome-src
 
