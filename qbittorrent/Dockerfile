@@ -105,9 +105,16 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
     cd .. && rm -rf boost-src
 
 # 5. Build Qt6 (Static, Minimal)
-RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
+# Qt's configure reads LDFLAGS and forwards it to cmake, which applies it to
+# Qt's own host tool executables (qmake, etc.). Those tools run only in the
+# builder container and must NOT use -static, or the linker will reject system
+# .so files that cmake finds by absolute path (libz.so, libzstd.so).
+# Qt's own -static configure flag handles making Qt's *libraries* static.
+# We restore -static only at the qBittorrent link step below.
+RUN export LDFLAGS="-Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -flto -L/usr/local/lib" && \
     QT_VER_CLEAN=$(echo $QT_VERSION | sed 's/v//') && \
     QT_VER_SHORT=$(echo $QT_VER_CLEAN | cut -d. -f1-2) && \
+    echo "[BUILD] Building Qt ${QT_VER_CLEAN}..." && \
     wget -q "https://download.qt.io/official_releases/qt/${QT_VER_SHORT}/${QT_VER_CLEAN}/submodules/qtbase-everywhere-src-${QT_VER_CLEAN}.tar.xz" -O qt.tar.xz && \
     tar xf qt.tar.xz && \
     cd qtbase-everywhere-src-${QT_VER_CLEAN} && \
@@ -130,6 +137,7 @@ RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
       -no-feature-printsupport \
       -no-opengl \
       -no-vulkan \
+      -no-feature-zstd \
       -openssl-linked \
       -opensource -confirm-license \
       -nomake examples -nomake tests \
@@ -137,7 +145,8 @@ RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
       -- \
       -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
       -DCMAKE_C_FLAGS="$CFLAGS" \
-      -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+      -DZLIB_LIBRARY=/usr/lib/libz.a \
+      -DZLIB_INCLUDE_DIR=/usr/include \
       && \
     cmake --build . --parallel $(nproc) && \
     cmake --install . && \
