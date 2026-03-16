@@ -24,7 +24,12 @@ RUN apk add --no-cache \
     zstd-static \
     zstd \
     glib-static \
+    brotli-static \
+    expat-static \
     aria2
+
+# Force static linking by removing dynamic libraries that interfere with the linker
+RUN rm -f /usr/lib/libz.so* /usr/lib/libzstd.so*
 
 # Arguments (Versions)
 ARG QBITTORRENT_VERSION
@@ -135,6 +140,7 @@ RUN echo "[BUILD] Building Qt ${QT_VERSION}..." && \
       -- \
       -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
       -DCMAKE_C_FLAGS="$CFLAGS" \
+      -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
       && \
     cmake --build . --parallel $(nproc) && \
     cmake --install . && \
