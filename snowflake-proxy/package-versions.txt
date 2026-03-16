@@ -2,7 +2,6 @@
 
 snowflake-version-e11a2b136a00789b6815474bbc4169b80ff0d7da
 
-# Debian Packages (trixie)
-tor-geoipdb=0.4.8.16-1
-ca-certificates=20250419
-golang=2:1.24~2
+# Alpine Packages
+ca-certificates-20251003-r0
+go-1.25.8-r0
