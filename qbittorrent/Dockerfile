@@ -28,6 +28,10 @@ RUN apk add --no-cache \
     expat-static \
     aria2
 
+# Remove the unversioned linker symlinks so cmake finds only .a throughout all
+# build steps. The runtime .so.1 files are preserved (wget/curl still work).
+RUN rm -f /usr/lib/libz.so /usr/lib/libzstd.so
+
 # Arguments (Versions)
 ARG QBITTORRENT_VERSION
 ARG LIBTORRENT_VERSION
@@ -145,8 +149,6 @@ RUN export LDFLAGS="-Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -flto -L/usr/local
       -- \
       -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
       -DCMAKE_C_FLAGS="$CFLAGS" \
-      -DZLIB_LIBRARY=/usr/lib/libz.a \
-      -DZLIB_INCLUDE_DIR=/usr/include \
       && \
     cmake --build . --parallel $(nproc) && \
     cmake --install . && \
