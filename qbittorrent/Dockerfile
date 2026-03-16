@@ -28,9 +28,6 @@ RUN apk add --no-cache \
     expat-static \
     aria2
 
-# Force static linking by removing dynamic libraries that interfere with the linker
-RUN rm -f /usr/lib/libz.so* /usr/lib/libzstd.so*
-
 # Arguments (Versions)
 ARG QBITTORRENT_VERSION
 ARG LIBTORRENT_VERSION
