@@ -32,12 +32,11 @@ jobs:
         id: get_tor
         run: echo "sha=$(git ls-remote https://gitlab.torproject.org/tpo/core/tor.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
 
-      - name: Get Debian build dependency versions (Apt-cache policy)
+      - name: Check for Alpine build dependency versions
         id: get_pkgs
         run: |
-          PACKAGES="libcap-dev libevent-dev liblz4-dev liblzma-dev libscrypt-dev libseccomp-dev libssl-dev libzstd-dev tor-geoipdb zlib1g-dev"
-          docker run --rm debian:trixie-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
-          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
+          LIBS="libevent-dev openssl-dev zlib-dev zstd-dev xz-dev lz4-dev libseccomp-dev libcap-dev"
+          docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null; for pkg in $LIBS; do apk search -x \$pkg 2>/dev/null | head -1; done" | grep -v '^$' | sort > current-packages.txt
 
       - name: Check for Changes
         id: check
@@ -65,7 +64,7 @@ jobs:
             echo "lyrebird-${{ steps.get_lyrebird.outputs.sha }}"
             echo "tor-${{ steps.get_tor.outputs.sha }}"
             echo ""
-            echo "# Build Dependencies (Debian Trixie)"
+            echo "# Build Dependencies (Alpine)"
             cat current-packages.txt
           } > meta.txt
           CONTENT=$(cat meta.txt | base64 -w 0)

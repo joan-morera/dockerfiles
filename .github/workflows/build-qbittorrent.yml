@@ -79,13 +79,6 @@ jobs:
              | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
            echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Get Debian Sid System Versions
-        id: get_sys
-        run: |
-          PACKAGES="libc6 libstdc++6 libgcc-s1 zlib1g libzstd1 ca-certificates gcc"
-          docker run --rm debian:sid-slim sh -c "apt-get update -qq && apt-cache policy $PACKAGES" | \
-          awk '/^[^ ]/ {pkg=$1; sub(/:$/,"",pkg)} /Candidate:/ {print pkg "-" $2}' | sort > current-packages.txt
-
       - name: Check for Changes
         id: check
         run: |
@@ -108,7 +101,6 @@ jobs:
               if ! grep -q "${{ steps.get_boost.outputs.v1 }}" "$FILE_V1"; then REBUILD_V1=true; fi
               if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
               if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! diff -q current-packages.txt <(grep -A 999 "System Dependencies" "$FILE_V1" | tail -n +2) > /dev/null; then REBUILD_V1=true; fi
             fi
             # V2 check
             if [ ! -f "$FILE_V2" ]; then
@@ -120,7 +112,6 @@ jobs:
               if ! grep -q "${{ steps.get_boost.outputs.v2 }}" "$FILE_V2"; then REBUILD_V2=true; fi
               if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
               if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! diff -q current-packages.txt <(grep -A 999 "System Dependencies" "$FILE_V2" | tail -n +2) > /dev/null; then REBUILD_V2=true; fi
             fi
           fi
           
@@ -138,9 +129,6 @@ jobs:
             echo "boost-v1-${{ steps.get_boost.outputs.v1 }}"
             echo "openssl-${{ steps.get_ssl.outputs.tag }}"
             echo "mimalloc-${{ steps.get_mimalloc.outputs.tag }}"
-            echo ""
-            echo "# System Dependencies (Debian Sid)"
-            cat current-packages.txt
           } > meta_v1.txt
           CONTENT=$(cat meta_v1.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
@@ -156,9 +144,6 @@ jobs:
             echo "boost-v2-${{ steps.get_boost.outputs.v2 }}"
             echo "openssl-${{ steps.get_ssl.outputs.tag }}"
             echo "mimalloc-${{ steps.get_mimalloc.outputs.tag }}"
-            echo ""
-            echo "# System Dependencies (Debian Sid)"
-            cat current-packages.txt
           } > meta_v2.txt
           CONTENT=$(cat meta_v2.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT

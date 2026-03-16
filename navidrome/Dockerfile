@@ -2,21 +2,11 @@
 # Navidrome (RPi4 Optimized) - Bleeding Edge
 #
 # Stage 1: Builder
-FROM cachyos/cachyos-v3:latest AS base-amd64
-FROM ogarcia/archlinux:latest AS base-arm64
+FROM alpine:latest AS builder
 
-ARG TARGETARCH
-FROM base-${TARGETARCH} AS builder
-
-ENV LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
-
-# 1. Install System Dependencies (Arch Linux)
-# base-devel: includes gcc, make, etc.
-# go, nodejs, npm: Latest versions are in Arch repos
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm \
-    base-devel \
+# 1. Install System Dependencies (Alpine)
+RUN apk add --no-cache \
+    build-base \
     git \
     wget \
     curl \
@@ -26,9 +16,11 @@ RUN pacman -Syu --noconfirm && \
     go \
     nodejs \
     npm \
-    python \
-    tzdata && \
-    echo "show-progress = off" >> /etc/wgetrc
+    python3 \
+    tzdata \
+    musl-dev \
+    autoconf \
+    automake
 
 # Arguments (Versions = Commit SHAs)
 ARG NAVIDROME_VERSION
@@ -38,23 +30,19 @@ ARG MP3LAME_VERSION
 ARG TAGLIB_VERSION
 ARG ZLIB_VERSION
 
-# Optimization Flags (Passed from Build System)
+# Optimization Flags
 ARG CFLAGS=""
 ARG CXXFLAGS=""
 ARG LDFLAGS="-Wl,-z,relro -Wl,-z,now"
 
-# PKG_CONFIG_PATH for /usr/local (libs built from source)
+# PKG_CONFIG_PATH
 ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
-# Working Directory
 WORKDIR /build
 
-# -----------------------------------------------------------------------------
 # 2. Build Dependencies (Audio Codecs)
-# -----------------------------------------------------------------------------
 
-# ZLIB (Static) - Needed for Navidrome/TagLib linkage
-# Using ${ZLIB_VERSION} (Automatically tracked)
+# ZLIB (Static)
 RUN echo "[BUILD] Building Zlib (${ZLIB_VERSION})..." && \
     wget -q https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz && \
     tar -xzf zlib-${ZLIB_VERSION}.tar.gz && \
@@ -64,7 +52,7 @@ RUN echo "[BUILD] Building Zlib (${ZLIB_VERSION})..." && \
     make install && \
     cd .. && rm -rf zlib-${ZLIB_VERSION} zlib-${ZLIB_VERSION}.tar.gz
 
-# LAME (MP3) - From Debian Salsa (Multimedia Team)
+# LAME (MP3)
 RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
     git clone -q https://salsa.debian.org/multimedia-team/lame.git lame-src && \
     cd lame-src && \
@@ -81,7 +69,7 @@ RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
     make install && \
     cd .. && rm -rf lame-src
 
-# Opus - From GitHub
+# Opus
 RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
     git clone -q https://github.com/xiph/opus.git opus-src && \
     cd opus-src && \
@@ -99,7 +87,7 @@ RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
     make install && \
     cd .. && rm -rf opus-src
 
-# TagLib (Needed for Navidrome) - From GitHub
+# TagLib
 RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
     git clone -q https://github.com/taglib/taglib.git taglib-src && \
     cd taglib-src && \
@@ -117,9 +105,7 @@ RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
     cmake --install build && \
     cd .. && rm -rf taglib-src
 
-# -----------------------------------------------------------------------------
-# 3. Build FFmpeg - From Git (GitHub Mirror)
-# -----------------------------------------------------------------------------
+# 3. Build FFmpeg
 RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
     wget -q "https://github.com/FFmpeg/FFmpeg/archive/${FFMPEG_VERSION}.tar.gz" -O ffmpeg.tar.gz && \
     tar xzf ffmpeg.tar.gz && \
@@ -130,7 +116,6 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
       --extra-cflags="${CFLAGS}" \
       --extra-cxxflags="${CXXFLAGS}" \
       --pkg-config-flags="--static" \
-      --extra-cflags="${CFLAGS}" \
       --extra-ldflags="${LDFLAGS} -static" \
       --extra-libs="-lpthread -lm" \
       --bindir="/usr/local/bin" \
@@ -140,13 +125,11 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
       --disable-ffprobe \
       --disable-doc \
       --disable-network \
-      # Minimal Audio Only
       --disable-everything \
       --enable-protocol=file \
       --enable-protocol=pipe \
       --enable-libmp3lame \
       --enable-libopus \
-      # Decoders (Common Audio)
       --enable-decoder=aac \
       --enable-decoder=libopus \
       --enable-decoder=mp3 \
@@ -154,11 +137,9 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
       --enable-decoder=alac \
       --enable-decoder=pcm_s16le \
       --enable-decoder=wavpack \
-      # Encoders (Transcoding Targets)
       --enable-encoder=aac \
       --enable-encoder=libopus \
       --enable-encoder=libmp3lame \
-      # Muxers/Demuxers
       --enable-muxer=adts \
       --enable-muxer=opus \
       --enable-muxer=mp3 \
@@ -173,10 +154,8 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
       --enable-demuxer=mov \
       --enable-demuxer=m4a \
       --enable-demuxer=null \
-      # Filters (Resampling is critical for transcoding)
       --enable-filter=aresample \
       --enable-filter=anull \
-      # Hardware
       --enable-neon \
       --enable-asm \
       && \
@@ -184,18 +163,14 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
     make install && \
     cd .. && rm -rf ffmpeg*
 
-# -----------------------------------------------------------------------------
-# 4. Build Navidrome - From GitHub (HEAD)
-# -----------------------------------------------------------------------------
+# 4. Build Navidrome
 RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
-    wget -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -o navidrome.tar.gz && \
+    wget -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -O navidrome.tar.gz && \
     tar xzf navidrome.tar.gz && \
     mv navidrome-${NAVIDROME_VERSION} navidrome-src && \
     cd navidrome-src && \
-    # Frontend
     make setup && \
     make buildjs && \
-    # Backend
     export CGO_ENABLED=1 && \
     export CGO_LDFLAGS="-L/usr/local/lib -ltag -lz -lstdc++ -lm" && \
     export CGO_CFLAGS="-I/usr/local/include/taglib -I/usr/local/include" && \
@@ -205,17 +180,15 @@ RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
     cp navidrome /usr/local/bin/navidrome && \
     cd .. && rm -rf navidrome-src
 
-# -----------------------------------------------------------------------------
-# 5. User Setup & Rootfs Preparation (Single Layer Optimization)
-# -----------------------------------------------------------------------------
+# 5. User Setup & Rootfs Preparation
 RUN mkdir -p /rootfs/etc/ssl/certs \
              /rootfs/usr/share/zoneinfo \
              /rootfs/usr/local/bin \
              /rootfs/usr/bin \
              /rootfs/data \
              /rootfs/music && \
-    # Users
-    useradd -u 1000 -U -s /bin/false -d /data navidrome && \
+    # Users (Alpine syntax)
+    adduser -D -u 1000 -h /data -s /bin/false navidrome && \
     grep navidrome /etc/passwd > /rootfs/etc/passwd && \
     grep navidrome /etc/group > /rootfs/etc/group && \
     # Certs & Timezone
@@ -227,16 +200,13 @@ RUN mkdir -p /rootfs/etc/ssl/certs \
     # Permissions
     chown -R 1000:1000 /rootfs/data /rootfs/music
 
-# -----------------------------------------------------------------------------
 # Stage 2: Final (Scratch)
-# -----------------------------------------------------------------------------
 FROM scratch
 LABEL org.opencontainers.image.source="https://github.com/joan-morera/dockerfiles"
 LABEL org.opencontainers.image.description="Navidrome Music Server"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL maintainer="JoanMorera"
 
-# Copy everything in one layer
 COPY --from=builder /rootfs /
 
 # Configuration

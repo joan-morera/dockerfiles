@@ -29,20 +29,13 @@ jobs:
           SHA=$(git ls-remote https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git HEAD | awk '{print $1}')
           echo "sha=${SHA}" >> $GITHUB_OUTPUT
 
-      - name: Get Debian package versions
+      - name: Check for Alpine package versions
         id: get_pkgs
         run: |
-          docker pull debian:trixie-slim
-          OUTPUT=$(docker run --rm debian:trixie-slim sh -c "
-            apt-get update -qq > /dev/null
-            for pkg in tor-geoipdb ca-certificates golang; do
-              ver=\$(apt-cache policy \$pkg | grep Candidate | awk '{print \$2}')
-              echo \"\${pkg}=\${ver}\"
-            done
-          ")
-          echo "$OUTPUT" > pkgs.txt
+          # Track go and ca-certificates as per rules
+          docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null; for pkg in go ca-certificates; do apk search -x \$pkg 2>/dev/null | head -1; done" | grep -v '^$' | sort > current-packages.txt
 
-      - name: Prepare Metadata and Check for Changes
+      - name: Check for Changes
         id: check
         run: |
           FILE="package-versions.txt"
@@ -52,6 +45,8 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             REBUILD=true
           elif [ ! -f $FILE ] || ! grep -q "$SHA" $FILE; then
+            REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(snowflake-version-|#)" $FILE | grep -v "^$" | sort); then
             REBUILD=true
           fi
           
@@ -65,11 +60,10 @@ jobs:
             echo ""
             echo "snowflake-version-${{ steps.get_snowflake.outputs.sha }}"
             echo ""
-            echo "# Debian Packages (trixie)"
-            cat pkgs.txt
+            echo "# Alpine Packages"
+            cat current-packages.txt
           } > meta.txt
           
-          # Convert to single line for output
           CONTENT=$(cat meta.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
 
