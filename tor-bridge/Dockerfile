@@ -57,7 +57,7 @@ RUN git clone -q https://gitlab.torproject.org/tpo/core/tor.git . && \
     ./autogen.sh && \
     ./configure \
         --disable-asciidoc --disable-manpages --disable-html-manual \
-        --enable-fatal-warnings --enable-gpl --enable-systemd=no \
+        --disable-fatal-warnings --enable-gpl --enable-systemd=no \
         --enable-static-tor --enable-zstd --enable-lzma \
         --with-libevent-dir=/usr/lib --with-openssl-dir=/usr/lib \
         --with-zlib-dir=/usr/lib --with-zstd-dir=/usr/lib --with-lzma-dir=/usr/lib \
