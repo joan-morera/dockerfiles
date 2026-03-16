@@ -19,8 +19,11 @@ RUN apk add --no-cache \
     ca-certificates \
     linux-headers \
     zlib-dev \
+    zlib-static \
     zstd-dev \
+    zstd-static \
     zstd \
+    glib-static \
     aria2
 
 # Arguments (Versions)
