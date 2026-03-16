@@ -9,13 +9,21 @@ RUN apk add --no-cache \
     automake \
     autoconf \
     libevent-dev \
+    libevent-static \
     openssl-dev \
+    openssl-libs-static \
     zlib-dev \
+    zlib-static \
     zstd-dev \
+    zstd-static \
     xz-dev \
+    xz-static \
     lz4-dev \
+    lz4-static \
     libseccomp-dev \
+    libseccomp-static \
     libcap-dev \
+    libcap-static \
     pkgconf \
     ca-certificates \
     musl-dev

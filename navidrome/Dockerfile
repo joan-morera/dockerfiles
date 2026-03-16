@@ -20,7 +20,8 @@ RUN apk add --no-cache \
     tzdata \
     musl-dev \
     autoconf \
-    automake
+    automake \
+    libtool
 
 # Arguments (Versions = Commit SHAs)
 ARG NAVIDROME_VERSION
