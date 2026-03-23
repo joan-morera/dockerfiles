@@ -1,7 +1,7 @@
 # qBittorrent V1 Versions
 qbittorrent-release-5.1.4
 libtorrent-v1-v1.2.20
-qt-v6.10.2
+qt-v6.11.0
 boost-v1-boost-1.86.0
 openssl-openssl-3.6.1
 mimalloc-v3.2.8
