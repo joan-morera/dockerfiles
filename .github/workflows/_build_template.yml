@@ -62,31 +62,23 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          PLATFORMS="${{ inputs.platforms }}${{ inputs.extra_platforms != '' && ',' || '' }}${{ inputs.extra_platforms }}"
-          IFS=',' read -ra ADDR <<< "$PLATFORMS"
-          MATRIX_JSON='{"include":['
-          SUFFIXES=""
-          FIRST=true
-          for i in "${ADDR[@]}"; do
-            P=$(echo "$i" | xargs)
-            [ -z "$P" ] && continue
-
-            if [ "$FIRST" = true ]; then FIRST=false; else MATRIX_JSON+=','; fi
-            
-            case "$P" in
-              "linux/amd64") SUFFIX="amd64"; RUNNER="ubuntu-latest" ;;
-              "linux/arm64") SUFFIX="arm64"; RUNNER="ubuntu-24.04-arm" ;;
-              "linux/arm/v7") SUFFIX="armv7"; RUNNER="ubuntu-latest" ;;
-              "linux/386") SUFFIX="386"; RUNNER="ubuntu-latest" ;;
-              *) SUFFIX=$(echo "$P" | sed 's/\//-/g'); RUNNER="ubuntu-latest" ;;
-            esac
-            
-            MATRIX_JSON+="{\"platform\":\"$P\",\"runner\":\"$RUNNER\",\"suffix\":\"$SUFFIX\"}"
-            SUFFIXES+="$SUFFIX "
-          done
+          # Always include amd64 and arm64
+          MATRIX_JSON='{"include":[{"platform":"linux/amd64","runner":"ubuntu-latest","suffix":"amd64"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm","suffix":"arm64"}'
+          SUFFIXES="amd64 arm64"
+          
+          # Append extra platforms if present
+          if [[ "${{ inputs.extra_platforms }}" == *"linux/arm/v7"* ]]; then
+            MATRIX_JSON+=',{"platform":"linux/arm/v7","runner":"ubuntu-latest","suffix":"armv7"}'
+            SUFFIXES+=" armv7"
+          fi
+          if [[ "${{ inputs.extra_platforms }}" == *"linux/386"* ]]; then
+            MATRIX_JSON+=',{"platform":"linux/386","runner":"ubuntu-latest","suffix":"386"}'
+            SUFFIXES+=" 386"
+          fi
+          
           MATRIX_JSON+=']}'
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-          echo "suffixes=$(echo $SUFFIXES | xargs)" >> $GITHUB_OUTPUT
+          echo "suffixes=$SUFFIXES" >> $GITHUB_OUTPUT
 
   build:
     needs: setup-matrix
@@ -116,6 +108,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Resolve Docker Hub Image
+        if: inputs.push_to_dockerhub
+        shell: bash
+        run: |
+          DH_REPO="${{ inputs.dockerhub_repo }}"
+          if [ -z "$DH_REPO" ]; then
+            DH_REPO="${{ inputs.image_name }}"
+          fi
+          echo "DH_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/$DH_REPO:${{ matrix.suffix }}" >> $GITHUB_ENV
+
       - name: Build and push (${{ matrix.suffix }})
         uses: docker/build-push-action@v7
         with:
@@ -127,7 +129,7 @@ jobs:
           build-args: ${{ inputs.build_args }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ matrix.suffix }}
-            ${{ inputs.push_to_dockerhub && format('{0}/{1}:{2}', secrets.DOCKERHUB_USERNAME, (inputs.dockerhub_repo != '' && inputs.dockerhub_repo || inputs.image_name), matrix.suffix) || '' }}
+            ${{ env.DH_IMAGE }}
           cache-from: type=gha,scope=build-${{ inputs.image_name }}-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=build-${{ inputs.image_name }}-${{ matrix.suffix }}
 
@@ -161,7 +163,11 @@ jobs:
           
           # Docker Hub Manifest
           if [ "${{ inputs.push_to_dockerhub }}" = "true" ]; then
-            IMAGE_DH="${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.dockerhub_repo != '' && inputs.dockerhub_repo || inputs.image_name }}"
+            DH_REPO="${{ inputs.dockerhub_repo }}"
+            if [ -z "$DH_REPO" ]; then
+              DH_REPO="${{ inputs.image_name }}"
+            fi
+            IMAGE_DH="${{ secrets.DOCKERHUB_USERNAME }}/$DH_REPO"
             TAGS_DH=""
             for p in $PLATFORMS; do TAGS_DH="$TAGS_DH $IMAGE_DH:$p"; done
             docker buildx imagetools create -t $IMAGE_DH:latest $TAGS_DH
