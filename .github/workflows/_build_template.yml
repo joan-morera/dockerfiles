@@ -53,28 +53,48 @@ on:
         default: ""
 
 jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      suffixes: ${{ steps.set-matrix.outputs.suffixes }}
+    steps:
+      - id: set-matrix
+        shell: bash
+        run: |
+          PLATFORMS="${{ inputs.platforms }}${{ inputs.extra_platforms != '' && ',' || '' }}${{ inputs.extra_platforms }}"
+          IFS=',' read -ra ADDR <<< "$PLATFORMS"
+          MATRIX_JSON='{"include":['
+          SUFFIXES=""
+          FIRST=true
+          for i in "${ADDR[@]}"; do
+            P=$(echo "$i" | xargs)
+            [ -z "$P" ] && continue
+
+            if [ "$FIRST" = true ]; then FIRST=false; else MATRIX_JSON+=','; fi
+            
+            case "$P" in
+              "linux/amd64") SUFFIX="amd64"; RUNNER="ubuntu-latest" ;;
+              "linux/arm64") SUFFIX="arm64"; RUNNER="ubuntu-24.04-arm" ;;
+              "linux/arm/v7") SUFFIX="armv7"; RUNNER="ubuntu-latest" ;;
+              "linux/386") SUFFIX="386"; RUNNER="ubuntu-latest" ;;
+              *) SUFFIX=$(echo "$P" | sed 's/\//-/g'); RUNNER="ubuntu-latest" ;;
+            esac
+            
+            MATRIX_JSON+="{\"platform\":\"$P\",\"runner\":\"$RUNNER\",\"suffix\":\"$SUFFIX\"}"
+            SUFFIXES+="$SUFFIX "
+          done
+          MATRIX_JSON+=']}'
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+          echo "suffixes=$(echo $SUFFIXES | xargs)" >> $GITHUB_OUTPUT
+
   build:
+    needs: setup-matrix
     if: inputs.rebuild || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            suffix: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            suffix: arm64
-          - platform: linux/arm/v7
-            runner: ubuntu-latest
-            suffix: armv7
-          - platform: linux/386
-            runner: ubuntu-latest
-            suffix: 386
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
-    if: |
-      (inputs.rebuild || github.event_name == 'workflow_dispatch') &&
-      (matrix.platform == 'linux/amd64' || matrix.platform == 'linux/arm64' || contains(inputs.extra_platforms, matrix.platform))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -112,7 +132,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=build-${{ inputs.image_name }}-${{ matrix.suffix }}
 
   merge-tags:
-    needs: build
+    needs: [setup-matrix, build]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to the GitHub Container Registry
@@ -131,12 +151,10 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
-          IMAGE_GHCR="ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}"
-          PLATFORMS="amd64 arm64"
-          if [[ "${{ inputs.extra_platforms }}" == *"linux/arm/v7"* ]]; then PLATFORMS="$PLATFORMS armv7"; fi
-          if [[ "${{ inputs.extra_platforms }}" == *"linux/386"* ]]; then PLATFORMS="$PLATFORMS 386"; fi
+          PLATFORMS="${{ needs.setup-matrix.outputs.suffixes }}"
           
           # GHCR Manifest
+          IMAGE_GHCR="ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}"
           TAGS_GHCR=""
           for p in $PLATFORMS; do TAGS_GHCR="$TAGS_GHCR $IMAGE_GHCR:$p"; done
           docker buildx imagetools create -t $IMAGE_GHCR:latest $TAGS_GHCR
