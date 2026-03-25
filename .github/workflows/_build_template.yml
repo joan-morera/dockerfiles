@@ -36,6 +36,21 @@ on:
         type: string
         description: "Name of the metadata file to write"
         default: "package-versions.txt"
+      extra_platforms:
+        required: false
+        type: string
+        description: "Additional platforms (e.g. linux/arm/v7,linux/386). Comma separated."
+        default: ""
+      push_to_dockerhub:
+        required: false
+        type: boolean
+        description: "Whether to push the image to Docker Hub"
+        default: false
+      dockerhub_repo:
+        required: false
+        type: string
+        description: "Optional Docker Hub repository name (defaults to image_name)"
+        default: ""
 
 jobs:
   build:
@@ -50,7 +65,16 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
             suffix: arm64
+          - platform: linux/arm/v7
+            runner: ubuntu-latest
+            suffix: armv7
+          - platform: linux/386
+            runner: ubuntu-latest
+            suffix: 386
     runs-on: ${{ matrix.runner }}
+    if: |
+      (inputs.rebuild || github.event_name == 'workflow_dispatch') &&
+      (matrix.platform == 'linux/amd64' || matrix.platform == 'linux/arm64' || contains(inputs.extra_platforms, matrix.platform))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -65,6 +89,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: inputs.push_to_dockerhub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
       - name: Build and push (${{ matrix.suffix }})
         uses: docker/build-push-action@v7
         with:
@@ -76,6 +107,7 @@ jobs:
           build-args: ${{ inputs.build_args }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ matrix.suffix }}
+            ${{ inputs.push_to_dockerhub && format('{0}/{1}:{2}', secrets.DOCKERHUB_USERNAME, (inputs.dockerhub_repo != '' && inputs.dockerhub_repo || inputs.image_name), matrix.suffix) || '' }}
           cache-from: type=gha,scope=build-${{ inputs.image_name }}-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=build-${{ inputs.image_name }}-${{ matrix.suffix }}
 
@@ -90,12 +122,32 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: inputs.push_to_dockerhub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
       - name: Create and push multi-arch manifest
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}"
-          docker buildx imagetools create -t $IMAGE:latest \
-            $IMAGE:amd64 \
-            $IMAGE:arm64
+          IMAGE_GHCR="ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}"
+          PLATFORMS="amd64 arm64"
+          if [[ "${{ inputs.extra_platforms }}" == *"linux/arm/v7"* ]]; then PLATFORMS="$PLATFORMS armv7"; fi
+          if [[ "${{ inputs.extra_platforms }}" == *"linux/386"* ]]; then PLATFORMS="$PLATFORMS 386"; fi
+          
+          # GHCR Manifest
+          TAGS_GHCR=""
+          for p in $PLATFORMS; do TAGS_GHCR="$TAGS_GHCR $IMAGE_GHCR:$p"; done
+          docker buildx imagetools create -t $IMAGE_GHCR:latest $TAGS_GHCR
+          
+          # Docker Hub Manifest
+          if [ "${{ inputs.push_to_dockerhub }}" = "true" ]; then
+            IMAGE_DH="${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.dockerhub_repo != '' && inputs.dockerhub_repo || inputs.image_name }}"
+            TAGS_DH=""
+            for p in $PLATFORMS; do TAGS_DH="$TAGS_DH $IMAGE_DH:$p"; done
+            docker buildx imagetools create -t $IMAGE_DH:latest $TAGS_DH
+          fi
 
   update-repo:
     needs: merge-tags

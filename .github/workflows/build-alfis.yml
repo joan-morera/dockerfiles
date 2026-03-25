@@ -75,3 +75,6 @@ jobs:
         ALFIS_VERSION=${{ needs.check-versions.outputs.alfis_version }}
       rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
+      extra_platforms: "linux/arm/v7,linux/386"
+      push_to_dockerhub: true
+    secrets: inherit
