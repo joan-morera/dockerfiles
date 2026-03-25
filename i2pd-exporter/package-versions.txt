@@ -2,5 +2,5 @@
 i2pd-exporter-v2.0.4
 
 # Build Dependencies
-cargo-1.91.1-r0
-rust-1.91.1-r0
+cargo-1.91.1-r1
+rust-1.91.1-r1
