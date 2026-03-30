@@ -51,6 +51,11 @@ on:
         type: string
         description: "Optional Docker Hub repository name (defaults to image_name)"
         default: ""
+      extra_variants:
+        required: false
+        type: string
+        description: "JSON array of extra build variants (suffix, platform, runner, build_args)"
+        default: "[]"
 
 jobs:
   setup-matrix:
@@ -62,20 +67,30 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          # Always include amd64 and arm64
-          MATRIX_JSON='{"include":[{"platform":"linux/amd64","runner":"ubuntu-latest","suffix":"amd64"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm","suffix":"arm64"}'
+          # Always include amd64 and arm64 as base platforms
+          MATRIX_JSON='{"include":[{"platform":"linux/amd64","runner":"ubuntu-latest","suffix":"amd64","is_variant":false},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm","suffix":"arm64","is_variant":false}'
           SUFFIXES="amd64 arm64"
           
           # Append extra platforms if present
           if [[ "${{ inputs.extra_platforms }}" == *"linux/arm/v7"* ]]; then
-            MATRIX_JSON+=',{"platform":"linux/arm/v7","runner":"ubuntu-latest","suffix":"armv7"}'
+            MATRIX_JSON+=',{"platform":"linux/arm/v7","runner":"ubuntu-latest","suffix":"armv7","is_variant":false}'
             SUFFIXES+=" armv7"
           fi
           if [[ "${{ inputs.extra_platforms }}" == *"linux/386"* ]]; then
-            MATRIX_JSON+=',{"platform":"linux/386","runner":"ubuntu-latest","suffix":"386"}'
+            MATRIX_JSON+=',{"platform":"linux/386","runner":"ubuntu-latest","suffix":"386","is_variant":false}'
             SUFFIXES+=" 386"
           fi
           
+          # Append extra variants if present
+          VARIANTS='${{ inputs.extra_variants }}'
+          if [[ "$VARIANTS" != "[]" ]]; then
+            # We use jq to parse and clean the variants, ensuring is_variant: true
+            VARIANTS_JSON=$(echo "$VARIANTS" | jq -c '.[] | . + {"is_variant": true}')
+            while read -r v; do
+              MATRIX_JSON+=",$v"
+            done <<< "$VARIANTS_JSON"
+          fi
+
           MATRIX_JSON+=']}'
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
           echo "suffixes=$SUFFIXES" >> $GITHUB_OUTPUT
@@ -126,7 +141,9 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           provenance: false
-          build-args: ${{ inputs.build_args }}
+          build-args: |
+            ${{ inputs.build_args }}
+            ${{ matrix.build_args }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ matrix.suffix }}
             ${{ env.DH_IMAGE }}

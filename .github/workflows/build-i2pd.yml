@@ -90,3 +90,12 @@ jobs:
         BOOST_PKG_VERSION=${{ needs.check-versions.outputs.boost_pkg_version }}
       rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
+      extra_variants: |
+        [
+          {
+            "platform": "linux/arm64",
+            "runner": "ubuntu-24.04-arm",
+            "suffix": "rpi4",
+            "build_args": "ARM64_VARIANT=rpi4"
+          }
+        ]
