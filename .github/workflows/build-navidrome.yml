@@ -18,52 +18,42 @@ jobs:
     outputs:
       rebuild: ${{ steps.check.outputs.rebuild }}
       version_metadata: ${{ steps.meta.outputs.content }}
-      navidrome_ver: ${{ steps.get_navidrome.outputs.sha }}
-      ffmpeg_ver: ${{ steps.get_ffmpeg.outputs.sha }}
-      opus_ver: ${{ steps.get_opus.outputs.sha }}
-      lame_ver: ${{ steps.get_lame.outputs.sha }}
-      taglib_ver: ${{ steps.get_taglib.outputs.sha }}
-      zlib_ver: ${{ steps.get_zlib.outputs.ver }}
+      navidrome_version: ${{ steps.get_versions.outputs.navidrome }}
+      ffmpeg_version: ${{ steps.get_versions.outputs.ffmpeg }}
+      opus_version: ${{ steps.get_versions.outputs.opus }}
+      lame_version: ${{ steps.get_versions.outputs.lame }}
+      taglib_version: ${{ steps.get_versions.outputs.taglib }}
+      zlib_version: ${{ steps.get_versions.outputs.zlib }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Get latest Navidrome (Release)
-        id: get_navidrome
-        run: echo "sha=$(curl -s https://api.github.com/repos/navidrome/navidrome/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
-
-      - name: Get latest FFmpeg (Release)
-        id: get_ffmpeg
-        run: echo "sha=$(curl -s https://api.github.com/repos/FFmpeg/FFmpeg/tags | jq -r '.[].name' | grep '^n[0-9]' | grep -v '\-dev' | head -n 1 | sed 's/^n//')" >> $GITHUB_OUTPUT
-
-      - name: Get latest Opus (Release)
-        id: get_opus
-        run: echo "sha=$(curl -s https://api.github.com/repos/xiph/opus/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
-
-      - name: Get latest Lame (Release)
-        id: get_lame
-        run: echo "sha=$(curl -s "https://salsa.debian.org/api/v4/projects/8041/repository/tags?per_page=100" | jq -r '.[].name' | grep '^debian/' | grep -v 'svn' | sort -V | tail -n 1 | sed 's/^debian\///')" >> $GITHUB_OUTPUT
-
-      - name: Get latest TagLib (Release)
-        id: get_taglib
-        run: echo "sha=$(curl -s https://api.github.com/repos/taglib/taglib/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
-
-      - name: Get latest Zlib (Release)
-        id: get_zlib
+      - name: Get latest versions
+        id: get_versions
         run: |
-          VER=$(curl -s https://api.github.com/repos/madler/zlib/releases/latest | jq -r .tag_name | sed 's/^v//')
-          if [ "$VER" == "null" ] || [ -z "$VER" ]; then
-            VER=$(curl -s https://zlib.net/ | grep -oE 'zlib-[0-9.]+\.tar\.gz' | head -n 1 | sed 's/zlib-//;s/\.tar\.gz//')
-          fi
-          echo "ver=$VER" >> $GITHUB_OUTPUT
+          NAVIDROME=$(git ls-remote --tags --sort='v:refname' https://github.com/navidrome/navidrome.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          FFMPEG=$(git ls-remote --tags --sort='v:refname' https://github.com/FFmpeg/FFmpeg.git | grep "refs/tags/n" | grep -v "\-dev" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^n//')
+          OPUS=$(git ls-remote --tags --sort='v:refname' https://github.com/xiph/opus.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          LAME=$(git ls-remote --tags --sort='v:refname' https://salsa.debian.org/multimedia-team/lame.git | grep "refs/tags/debian/" | grep -v "svn" | tail -n1 | sed 's/.*\///' | sed 's/debian\///')
+          TAGLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/taglib/taglib.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          ZLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/madler/zlib.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          
+          echo "navidrome=${NAVIDROME}" >> $GITHUB_OUTPUT
+          echo "ffmpeg=${FFMPEG}" >> $GITHUB_OUTPUT
+          echo "opus=${OPUS}" >> $GITHUB_OUTPUT
+          echo "lame=${LAME}" >> $GITHUB_OUTPUT
+          echo "taglib=${TAGLIB}" >> $GITHUB_OUTPUT
+          echo "zlib=${ZLIB}" >> $GITHUB_OUTPUT
 
       - name: Check for Changes
         id: check
         run: |
           FILE="package-versions.txt"
           REBUILD=false
+          NAVIDROME="${{ steps.get_versions.outputs.navidrome }}"
+          
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             REBUILD=true
-          elif [ ! -f $FILE ] || ! grep -q "${{ steps.get_navidrome.outputs.sha }}" $FILE; then
+          elif [ ! -f $FILE ] || ! grep -q "$NAVIDROME" $FILE; then
             REBUILD=true
           fi
           echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
@@ -72,13 +62,13 @@ jobs:
         id: meta
         run: |
           {
-            echo "# Navidrome Build Versions"
-            echo "navidrome-${{ steps.get_navidrome.outputs.sha }}"
-            echo "ffmpeg-${{ steps.get_ffmpeg.outputs.sha }}"
-            echo "opus-${{ steps.get_opus.outputs.sha }}"
-            echo "mp3lame-${{ steps.get_lame.outputs.sha }}"
-            echo "taglib-${{ steps.get_taglib.outputs.sha }}"
-            echo "zlib-${{ steps.get_zlib.outputs.ver }}"
+            echo "# Navidrome Release Versions"
+            echo "navidrome-${{ steps.get_versions.outputs.navidrome }}"
+            echo "ffmpeg-${{ steps.get_versions.outputs.ffmpeg }}"
+            echo "opus-${{ steps.get_versions.outputs.opus }}"
+            echo "mp3lame-${{ steps.get_versions.outputs.lame }}"
+            echo "taglib-${{ steps.get_versions.outputs.taglib }}"
+            echo "zlib-${{ steps.get_versions.outputs.zlib }}"
           } > meta.txt
           CONTENT=$(cat meta.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
@@ -91,12 +81,12 @@ jobs:
       context: ./navidrome
       dockerfile: ./navidrome/Dockerfile
       build_args: |
-        NAVIDROME_VERSION=${{ needs.check-versions.outputs.navidrome_ver }}
-        FFMPEG_VERSION=${{ needs.check-versions.outputs.ffmpeg_ver }}
-        OPUS_VERSION=${{ needs.check-versions.outputs.opus_ver }}
-        MP3LAME_VERSION=${{ needs.check-versions.outputs.lame_ver }}
-        TAGLIB_VERSION=${{ needs.check-versions.outputs.taglib_ver }}
-        ZLIB_VERSION=${{ needs.check-versions.outputs.zlib_ver }}
+        NAVIDROME_VERSION=${{ needs.check-versions.outputs.navidrome_version }}
+        FFMPEG_VERSION=${{ needs.check-versions.outputs.ffmpeg_version }}
+        OPUS_VERSION=${{ needs.check-versions.outputs.opus_version }}
+        MP3LAME_VERSION=${{ needs.check-versions.outputs.lame_version }}
+        TAGLIB_VERSION=${{ needs.check-versions.outputs.taglib_version }}
+        ZLIB_VERSION=${{ needs.check-versions.outputs.zlib_version }}
         CFLAGS=-O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2
         CXXFLAGS=-O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2
       rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
