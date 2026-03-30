@@ -133,6 +133,17 @@ jobs:
           fi
           echo "DH_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/$DH_REPO:${{ matrix.suffix }}" >> $GITHUB_ENV
 
+      - name: Prepare Build Args
+        id: build_args
+        shell: bash
+        run: |
+          {
+            echo "merged_args<<EOF"
+            echo "${{ inputs.build_args }}"
+            echo "${{ matrix.build_args }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push (${{ matrix.suffix }})
         uses: docker/build-push-action@v7
         with:
@@ -141,9 +152,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           provenance: false
-          build-args: |
-            ${{ inputs.build_args }}
-            ${{ matrix.build_args }}
+          build-args: ${{ steps.build_args.outputs.merged_args }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ matrix.suffix }}
             ${{ env.DH_IMAGE }}

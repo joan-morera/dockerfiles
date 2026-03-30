@@ -102,12 +102,12 @@ jobs:
             "platform": "linux/arm64",
             "runner": "ubuntu-24.04-arm",
             "suffix": "rpi4",
-            "build_args": "CFLAGS=\"-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2\"\nCXXFLAGS=\"-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2\""
+            "build_args": "CFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2\nCXXFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
           },
           {
             "platform": "linux/amd64",
             "runner": "ubuntu-latest",
             "suffix": "amd64-v3",
-            "build_args": "CFLAGS=\"-O3 -march=x86-64-v3 -fstack-protector-strong -D_FORTIFY_SOURCE=2\"\nCXXFLAGS=\"-O3 -march=x86-64-v3 -fstack-protector-strong -D_FORTIFY_SOURCE=2\""
+            "build_args": "CFLAGS=-O3 -march=x86-64-v3 -fstack-protector-strong -D_FORTIFY_SOURCE=2\nCXXFLAGS=-O3 -march=x86-64-v3 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
           }
         ]
