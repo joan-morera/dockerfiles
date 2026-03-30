@@ -91,9 +91,9 @@ RUN echo "[BUILD] Building Opus (Release: ${OPUS_VERSION})..." && \
 
 # TagLib
 RUN echo "[BUILD] Building TagLib (Release: ${TAGLIB_VERSION})..." && \
-    wget -q "https://github.com/taglib/taglib/archive/refs/tags/v${TAGLIB_VERSION}.tar.gz" -O taglib.tar.gz && \
-    tar xzf taglib.tar.gz && \
-    cd taglib-* && \
+    git clone -q --depth 1 --branch "v${TAGLIB_VERSION}" https://github.com/taglib/taglib.git taglib-src && \
+    cd taglib-src && \
+    git submodule update --init --recursive && \
     cmake -B build \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DCMAKE_BUILD_TYPE=Release \
@@ -104,7 +104,7 @@ RUN echo "[BUILD] Building TagLib (Release: ${TAGLIB_VERSION})..." && \
       && \
     cmake --build build --parallel $(nproc) && \
     cmake --install build && \
-    cd .. && rm -rf taglib-* taglib.tar.gz
+    cd .. && rm -rf taglib-src
 
 # 3. Build FFmpeg
 RUN echo "[BUILD] Building FFmpeg (Release: ${FFMPEG_VERSION})..." && \

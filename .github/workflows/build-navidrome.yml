@@ -30,12 +30,12 @@ jobs:
       - name: Get latest versions
         id: get_versions
         run: |
-          NAVIDROME=$(git ls-remote --tags --sort='v:refname' https://github.com/navidrome/navidrome.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
-          FFMPEG=$(git ls-remote --tags --sort='v:refname' https://github.com/FFmpeg/FFmpeg.git | grep "refs/tags/n" | grep -v "\-dev" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^n//')
-          OPUS=$(git ls-remote --tags --sort='v:refname' https://github.com/xiph/opus.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          NAVIDROME=$(git ls-remote --tags --sort='v:refname' https://github.com/navidrome/navidrome.git | grep "refs/tags/v" | grep -v "\^{}" | grep -E 'v[0-9.]+$' | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          FFMPEG=$(git ls-remote --tags --sort='v:refname' https://github.com/FFmpeg/FFmpeg.git | grep "refs/tags/n" | grep -v "\-dev" | grep -v "\^{}" | grep -E 'n[0-9.]+$' | tail -n1 | sed 's/.*\///' | sed 's/^n//')
+          OPUS=$(git ls-remote --tags --sort='v:refname' https://github.com/xiph/opus.git | grep "refs/tags/v" | grep -v "\^{}" | grep -E 'v[0-9.]+$' | tail -n1 | sed 's/.*\///' | sed 's/^v//')
           LAME=$(git ls-remote --tags --sort='v:refname' https://salsa.debian.org/multimedia-team/lame.git | grep "refs/tags/debian/" | grep -v "svn" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/debian\///')
-          TAGLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/taglib/taglib.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
-          ZLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/madler/zlib.git | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          TAGLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/taglib/taglib.git | grep "refs/tags/v" | grep -v "\^{}" | grep -E 'v[0-9.]+$' | tail -n1 | sed 's/.*\///' | sed 's/^v//')
+          ZLIB=$(git ls-remote --tags --sort='v:refname' https://github.com/madler/zlib.git | grep "refs/tags/v" | grep -v "\^{}" | grep -E 'v[0-9.]+$' | tail -n1 | sed 's/.*\///' | sed 's/^v//')
           
           echo "navidrome=${NAVIDROME}" >> $GITHUB_OUTPUT
           echo "ffmpeg=${FFMPEG}" >> $GITHUB_OUTPUT
