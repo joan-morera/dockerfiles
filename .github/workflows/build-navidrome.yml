@@ -27,29 +27,34 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Get latest Navidrome (HEAD)
+      - name: Get latest Navidrome (Release)
         id: get_navidrome
-        run: echo "sha=$(git ls-remote https://github.com/navidrome/navidrome.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
+        run: echo "sha=$(curl -s https://api.github.com/repos/navidrome/navidrome/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
 
-      - name: Get latest FFmpeg (HEAD)
+      - name: Get latest FFmpeg (Release)
         id: get_ffmpeg
-        run: echo "sha=$(git ls-remote https://github.com/FFmpeg/FFmpeg.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
+        run: echo "sha=$(curl -s https://api.github.com/repos/FFmpeg/FFmpeg/tags | jq -r '.[].name' | grep '^n[0-9]' | grep -v '\-dev' | head -n 1 | sed 's/^n//')" >> $GITHUB_OUTPUT
 
-      - name: Get latest Opus (HEAD)
+      - name: Get latest Opus (Release)
         id: get_opus
-        run: echo "sha=$(git ls-remote https://github.com/xiph/opus.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
+        run: echo "sha=$(curl -s https://api.github.com/repos/xiph/opus/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
 
-      - name: Get latest Lame (HEAD)
+      - name: Get latest Lame (Release)
         id: get_lame
-        run: echo "sha=$(git ls-remote https://salsa.debian.org/multimedia-team/lame.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
+        run: echo "sha=$(curl -s "https://salsa.debian.org/api/v4/projects/8041/repository/tags?per_page=100" | jq -r '.[].name' | grep '^debian/' | grep -v 'svn' | sort -V | tail -n 1 | sed 's/^debian\///')" >> $GITHUB_OUTPUT
 
-      - name: Get latest TagLib (HEAD)
+      - name: Get latest TagLib (Release)
         id: get_taglib
-        run: echo "sha=$(git ls-remote https://github.com/taglib/taglib.git HEAD | awk '{print $1}')" >> $GITHUB_OUTPUT
+        run: echo "sha=$(curl -s https://api.github.com/repos/taglib/taglib/releases/latest | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_OUTPUT
 
-      - name: Get latest Zlib (Tag)
+      - name: Get latest Zlib (Release)
         id: get_zlib
-        run: echo "ver=$(git ls-remote --tags https://github.com/madler/zlib.git | grep -v "\^{}" | awk -F/ '{print $3}' | grep -E '^v[0-9.]+$' | sort -V | tail -n1 | sed 's/^v//')" >> $GITHUB_OUTPUT
+        run: |
+          VER=$(curl -s https://api.github.com/repos/madler/zlib/releases/latest | jq -r .tag_name | sed 's/^v//')
+          if [ "$VER" == "null" ] || [ -z "$VER" ]; then
+            VER=$(curl -s https://zlib.net/ | grep -oE 'zlib-[0-9.]+\.tar\.gz' | head -n 1 | sed 's/zlib-//;s/\.tar\.gz//')
+          fi
+          echo "ver=$VER" >> $GITHUB_OUTPUT
 
       - name: Check for Changes
         id: check

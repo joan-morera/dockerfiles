@@ -1,7 +1,16 @@
+<<<<<<< Updated upstream
 # Navidrome Build Versions
 navidrome-9fe9cf3ff6aaf8c1ac06b2f6cd2cef43616d7679
 ffmpeg-e54e1179985145a2e0a5be9ee9000384ee58b7a5
 opus-788cc89ce4f2c42025d8c70ec1b4457dc89cd50f
 mp3lame-dc89997277ae8a819a8fdefb388d1084cd8a8958
 taglib-78298769de7485850613b0589d70503b8a8fc81c
+=======
+# Navidrome Build Versions (Generated)
+navidrome-0.60.3
+ffmpeg-8.1
+opus-1.5.2
+mp3lame-3.100-6
+taglib-2.2.1
+>>>>>>> Stashed changes
 zlib-1.3.2

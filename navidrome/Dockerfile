@@ -1,5 +1,5 @@
 #
-# Navidrome (RPi4 Optimized) - Bleeding Edge
+# Navidrome (RPi4 Optimized) - Stable Release
 #
 # Stage 1: Builder
 FROM alpine:latest AS builder
@@ -55,10 +55,10 @@ RUN echo "[BUILD] Building Zlib (${ZLIB_VERSION})..." && \
     cd .. && rm -rf zlib-${ZLIB_VERSION} zlib-${ZLIB_VERSION}.tar.gz
 
 # LAME (MP3)
-RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
-    git clone -q https://salsa.debian.org/multimedia-team/lame.git lame-src && \
-    cd lame-src && \
-    git checkout ${MP3LAME_VERSION} && \
+RUN echo "[BUILD] Building Lame (Release: ${MP3LAME_VERSION})..." && \
+    wget -q "https://salsa.debian.org/multimedia-team/lame/-/archive/debian/${MP3LAME_VERSION}/lame-debian-${MP3LAME_VERSION}.tar.gz" -O lame.tar.gz && \
+    tar xzf lame.tar.gz && \
+    cd lame-debian-* && \
     ./configure \
       --prefix=/usr/local \
       --enable-static \
@@ -69,13 +69,13 @@ RUN echo "[BUILD] Building Lame (Commit: ${MP3LAME_VERSION})..." && \
       && \
     make -j$(nproc) && \
     make install && \
-    cd .. && rm -rf lame-src
+    cd .. && rm -rf lame-debian-* lame.tar.gz
 
 # Opus
-RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
-    git clone -q https://github.com/xiph/opus.git opus-src && \
-    cd opus-src && \
-    git checkout ${OPUS_VERSION} && \
+RUN echo "[BUILD] Building Opus (Release: ${OPUS_VERSION})..." && \
+    wget -q "https://github.com/xiph/opus/archive/refs/tags/v${OPUS_VERSION}.tar.gz" -O opus.tar.gz && \
+    tar xzf opus.tar.gz && \
+    cd opus-* && \
     ./autogen.sh && \
     ./configure \
       --prefix=/usr/local \
@@ -87,14 +87,13 @@ RUN echo "[BUILD] Building Opus (Commit: ${OPUS_VERSION})..." && \
       && \
     make -j$(nproc) && \
     make install && \
-    cd .. && rm -rf opus-src
+    cd .. && rm -rf opus-* opus.tar.gz
 
 # TagLib
-RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
-    git clone -q https://github.com/taglib/taglib.git taglib-src && \
-    cd taglib-src && \
-    git checkout ${TAGLIB_VERSION} && \
-    git submodule update --init --recursive && \
+RUN echo "[BUILD] Building TagLib (Release: ${TAGLIB_VERSION})..." && \
+    wget -q "https://github.com/taglib/taglib/archive/refs/tags/v${TAGLIB_VERSION}.tar.gz" -O taglib.tar.gz && \
+    tar xzf taglib.tar.gz && \
+    cd taglib-* && \
     cmake -B build \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DCMAKE_BUILD_TYPE=Release \
@@ -105,14 +104,13 @@ RUN echo "[BUILD] Building TagLib (Commit: ${TAGLIB_VERSION})..." && \
       && \
     cmake --build build --parallel $(nproc) && \
     cmake --install build && \
-    cd .. && rm -rf taglib-src
+    cd .. && rm -rf taglib-* taglib.tar.gz
 
 # 3. Build FFmpeg
-RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
-    wget -q "https://github.com/FFmpeg/FFmpeg/archive/${FFMPEG_VERSION}.tar.gz" -O ffmpeg.tar.gz && \
+RUN echo "[BUILD] Building FFmpeg (Release: ${FFMPEG_VERSION})..." && \
+    wget -q "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz" -O ffmpeg.tar.gz && \
     tar xzf ffmpeg.tar.gz && \
-    mv FFmpeg-* ffmpeg-src && \
-    cd ffmpeg-src && \
+    cd FFmpeg-n* && \
     ./configure \
       --prefix=/usr/local \
       --extra-cflags="${CFLAGS}" \
@@ -166,21 +164,19 @@ RUN echo "[BUILD] Building FFmpeg (Commit: ${FFMPEG_VERSION})..." && \
     cd .. && rm -rf ffmpeg*
 
 # 4. Build Navidrome
-RUN echo "[BUILD] Building Navidrome (Commit: ${NAVIDROME_VERSION})..." && \
-    wget -q "https://github.com/navidrome/navidrome/archive/${NAVIDROME_VERSION}.tar.gz" -O navidrome.tar.gz && \
+RUN echo "[BUILD] Building Navidrome (Release: ${NAVIDROME_VERSION})..." && \
+    wget -q "https://github.com/navidrome/navidrome/archive/refs/tags/v${NAVIDROME_VERSION}.tar.gz" -O navidrome.tar.gz && \
     tar xzf navidrome.tar.gz && \
-    mv navidrome-${NAVIDROME_VERSION} navidrome-src && \
-    cd navidrome-src && \
+    cd navidrome-* && \
     make setup && \
     make buildjs && \
     export CGO_ENABLED=1 && \
     export CGO_LDFLAGS="-L/usr/local/lib -ltag -lz -lstdc++ -lm" && \
     export CGO_CFLAGS="-I/usr/local/include/taglib -I/usr/local/include" && \
     export CGO_CFLAGS_ALLOW="--define-prefix" && \
-    SHORT_SHA=$(echo ${NAVIDROME_VERSION} | cut -c1-7) && \
-    go build -buildvcs=false -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=${SHORT_SHA} -X github.com/navidrome/navidrome/resources.Tag=${SHORT_SHA}" -o navidrome . && \
+    go build -buildvcs=false -tags=netgo,osusergo,static_build,sqlite_fts5 -ldflags "-extldflags '-static' -X github.com/navidrome/navidrome/resources.Commit=${NAVIDROME_VERSION} -X github.com/navidrome/navidrome/resources.Tag=${NAVIDROME_VERSION}" -o navidrome . && \
     cp navidrome /usr/local/bin/navidrome && \
-    cd .. && rm -rf navidrome-src
+    cd .. && rm -rf navidrome-* navidrome.tar.gz
 
 # 5. User Setup & Rootfs Preparation
 RUN mkdir -p /rootfs/etc/ssl/certs \
