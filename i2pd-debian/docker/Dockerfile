@@ -40,7 +40,7 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     if [ "$TARGETARCH" = "arm64" ]; then \
       export OPT_FLAG="-Os"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
       fi \
     else \
       export OPT_FLAG="-O3"; \
@@ -62,10 +62,10 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
       export OPT_FLAG="-Os"; \
       export LIBDIR="/usr/lib/aarch64-linux-gnu"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
         export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard"; \
       else \
-        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard -march=armv8-a+crypto"; \
+        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard -march=armv8-a"; \
       fi \
     else \
       export OPT_FLAG="-O3"; \

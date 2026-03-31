@@ -46,8 +46,8 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     if [ "$TARGETARCH" = "arm64" ]; then \
       export OPT_FLAG="-Os"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        # +crypto suffix enables ARMv8 AES/SHA hardware instructions used by OpenSSL
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
+        # cortex-a72 (RPi 4) does not have the crypto extension.
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
       fi \
     else \
       export OPT_FLAG="-O3"; \
@@ -71,13 +71,13 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     if [ "$TARGETARCH" = "arm64" ]; then \
       export OPT_FLAG="-Os"; \
       if [ "$ARM64_VARIANT" = "rpi4" ]; then \
-        # +crypto: enables ARMv8 AES/SHA hardware extensions (critical for OpenSSL crypto kernels)
-        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72+crypto -mtune=cortex-a72 -mno-outline-atomics"; \
+        # cortex-a72 (RPi 4) does not have the crypto extension.
+        export CXXFLAGS_ARCH_SPECIFIC="-mcpu=cortex-a72 -mtune=cortex-a72 -mno-outline-atomics"; \
         export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard"; \
         echo "[BUILD] Building for ARM64 (aarch64) with Raspberry Pi 4 optimizations"; \
       else \
-        # Generic arm64: explicit +crypto march for hardware AES/SHA on any ARMv8 capable host
-        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard -march=armv8-a+crypto"; \
+        # Generic arm64: explicit march for hardware-neutral aarch64
+        export CXXFLAGS_ARCH_EXTRA="-mbranch-protection=standard -march=armv8-a"; \
         echo "[BUILD] Building for ARM64 (aarch64) generic"; \
       fi \
     else \
