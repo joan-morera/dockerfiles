@@ -1,0 +1,13 @@
+# PGO files (local optimization only, do not commit)
+Dockerfile.pgo-phase1
+Dockerfile.pgo-phase2
+docker-compose.pgo.yml
+PGO-GUIDE.md
+pgo-profile-data/
+i2pd-data/
+
+# Build artifacts
+build.log
+build_verify.log
+*.gcda
+*.gcno

@@ -1,0 +1,96 @@
+name: I2PD Debian | Build and Publish
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./i2pd-debian
+    outputs:
+      rebuild: ${{ steps.check.outputs.rebuild }}
+      version_metadata: ${{ steps.meta.outputs.content }}
+      i2pd_version: ${{ steps.get_versions.outputs.i2pd }}
+      mimalloc_version: ${{ steps.get_versions.outputs.mimalloc }}
+      boost_pkg_version: ${{ steps.get_versions.outputs.boost_pkg_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Get latest tags
+        id: get_versions
+        run: |
+          I2PD=$(git ls-remote --tags --sort='v:refname' https://github.com/PurpleI2P/i2pd.git | grep "refs/tags/2" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          MIMALLOC=$(git ls-remote --tags --sort='v:refname' https://github.com/microsoft/mimalloc.git | grep "refs/tags/v" | tail -n1 | sed 's/.*\///' | sed 's/\^{}//')
+          echo "i2pd=${I2PD}" >> $GITHUB_OUTPUT
+          echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
+
+      - name: Check for library dependency versions (Debian)
+        id: get_pkgs
+        run: |
+          # Track versions of key libraries in Debian Trixie to trigger rebuilds on upstream updates.
+          LIBS="libc6-dev libssl-dev libboost-program-options-dev libz-dev libminiupnpc-dev libzstd-dev"
+          docker run --rm debian:trixie-slim sh -c "apt-get update -q 2>/dev/null; for pkg in $LIBS; do apt-cache policy \$pkg 2>/dev/null | grep 'Candidate' | awk '{print \$2}'; done" | grep -v 'none' | sort > current-packages.txt
+
+      - name: Check for Changes
+        id: check
+        run: |
+          FILE="package-versions.txt"
+          REBUILD=false
+          I2PD="${{ steps.get_versions.outputs.i2pd }}"
+          MIMALLOC="${{ steps.get_versions.outputs.mimalloc }}"
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REBUILD=true
+          elif [ ! -f $FILE ] || ! grep -q "$I2PD" $FILE || ! grep -q "$MIMALLOC" $FILE; then
+            REBUILD=true
+          elif ! diff -q current-packages.txt <(grep -vE "^(i2pd-|mimalloc-|#)" $FILE | grep -v "^$" | sort); then
+             REBUILD=true
+          fi
+          
+          echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
+
+      - name: Generate Version Metadata
+        id: meta
+        run: |
+          {
+            echo "# I2PD Versions"
+            echo "i2pd-${{ steps.get_versions.outputs.i2pd }}"
+            echo "mimalloc-${{ steps.get_versions.outputs.mimalloc }}"
+            echo ""
+            echo "# Library Dependencies"
+            cat current-packages.txt
+          } > meta.txt
+          CONTENT=$(cat meta.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
+
+  build:
+    needs: check-versions
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: i2pd-debian
+      context: ./i2pd-debian/docker
+      dockerfile: ./i2pd-debian/docker/Dockerfile
+      metadata_dir: ./i2pd-debian
+      build_args: |
+        I2PD_VERSION=${{ needs.check-versions.outputs.i2pd_version }}
+        MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_version }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
+      extra_variants: |
+        [
+          {
+            "platform": "linux/arm64",
+            "runner": "ubuntu-24.04-arm",
+            "suffix": "rpi4",
+            "build_args": "ARM64_VARIANT=rpi4"
+          }
+        ]

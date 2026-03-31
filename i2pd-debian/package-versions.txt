@@ -1,0 +1,10 @@
+# I2PD Versions
+i2pd-2.59.0
+mimalloc-v3.2.8
+
+# Library Dependencies
+boost1.84-static-1.84.0-r3
+miniupnpc-dev-2.3.2-r0
+openssl-libs-static-3.5.5-r0
+zlib-static-1.3.2-r0
+zstd-static-1.5.7-r2
