@@ -8,7 +8,7 @@ mimalloc-v3.2.8
 2.2.8-2+b2
 2.41-12+deb13u2
 3.5.5-1~deb13u1
-Fetched 10.0 MB in 1s (13.7 MB/s)
+Fetched 10.0 MB in 1s (11.3 MB/s)
 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
