@@ -1,6 +1,6 @@
 # Snowflake Proxy Versions
 
-snowflake-version-6b100d6a0c3dd399ba29153f8aed09f5c4bb3fef
+snowflake-version-a0ee1083550fb4e91e17b9b5942fa8a64ff37272
 
 # Alpine Packages
 ca-certificates-20251003-r0
