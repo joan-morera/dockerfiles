@@ -3,5 +3,5 @@ qbittorrent-release-5.1.4
 libtorrent-v2-branch-01bc261d9c107a0bd27025e978c8e3f75024eeea
 qt-v6.11.0
 boost-v2-boost-1.90.0
-openssl-openssl-3.6.1
+openssl-openssl-3.6.2
 mimalloc-v3.2.8
