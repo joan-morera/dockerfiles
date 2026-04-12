@@ -4,4 +4,4 @@ snowflake-version-cc1fbc86e0247ab4e527190061ccafe9882c2718
 
 # Alpine Packages
 ca-certificates-20251003-r0
-go-1.25.8-r0
+go-1.25.9-r0
