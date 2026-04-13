@@ -38,7 +38,7 @@ jobs:
         run: |
           # Track versions of key libraries in Debian Trixie to trigger rebuilds on upstream updates.
           LIBS="libc6-dev libssl-dev libboost-program-options-dev libz-dev libminiupnpc-dev libzstd-dev"
-          docker run --rm debian:trixie-slim sh -c "apt-get update -q 2>/dev/null; for pkg in $LIBS; do apt-cache policy \$pkg 2>/dev/null | grep 'Candidate' | awk '{print \$2}'; done" | grep -v 'none' | sort > current-packages.txt
+          docker run --rm debian:trixie-slim sh -c "apt-get update -qq >/dev/null 2>&1; for pkg in $LIBS; do version=\$(apt-cache policy \$pkg | grep 'Candidate' | awk '{print \$2}'); echo \"\$pkg-\$version\"; done" | sort > current-packages.txt
 
       - name: Check for Changes
         id: check
