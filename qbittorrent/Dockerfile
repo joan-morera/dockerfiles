@@ -147,8 +147,8 @@ RUN export LDFLAGS="-Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -flto -L/usr/local
       -nomake examples -nomake tests \
       -platform linux-g++ \
       -- \
-      -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
-      -DCMAKE_C_FLAGS="$CFLAGS" \
+      -DCMAKE_CXX_FLAGS="$CXXFLAGS -fpermissive" \
+      -DCMAKE_C_FLAGS="$CFLAGS -fpermissive" \
       && \
     cmake --build . --parallel $(nproc) && \
     cmake --install . && \
