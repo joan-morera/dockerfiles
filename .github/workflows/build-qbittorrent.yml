@@ -69,7 +69,7 @@ jobs:
       - name: Get latest OpenSSL 3
         id: get_ssl
         run: |
-           TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/openssl/openssl.git | grep -E "refs/tags/openssl-3\.[0-9]+\.[0-9]+$" | tail -n1 | sed 's/.*\///')
+           TAG=$(curl -s https://api.github.com/repos/openssl/openssl/releases/latest | jq -r '.tag_name')
            echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Get latest Mimalloc
