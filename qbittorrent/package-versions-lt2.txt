@@ -4,4 +4,4 @@ libtorrent-v2-branch-0837365feb52993d47e4e26c90433ad469b43f54
 qt-v6.11.0
 boost-v2-boost-1.90.0
 openssl-openssl-3.6.2
-mimalloc-v3.2.8
+mimalloc-v3.3.0
