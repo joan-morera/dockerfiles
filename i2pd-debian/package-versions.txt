@@ -1,6 +1,6 @@
 # I2PD Versions
 i2pd-2.59.0
-mimalloc-v3.2.8
+mimalloc-v3.3.0
 
 # Library Dependencies
 libboost-program-options-dev-1.83.0.2+b2
