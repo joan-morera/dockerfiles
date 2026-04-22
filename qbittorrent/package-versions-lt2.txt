@@ -1,6 +1,6 @@
 # qBittorrent V2 Versions
 qbittorrent-release-5.1.4
-libtorrent-v2-branch-5e5cce39882c1e03be94e7f1fbd58f6a4fa9cdfd
+libtorrent-v2-branch-82808a29208e4c415a5b858d8b251ebec92f7bee
 qt-v6.11.0
 boost-v2-boost-1.90.0
 openssl-openssl-3.6.2
