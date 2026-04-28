@@ -37,13 +37,10 @@ EOF
 
 RUN chmod +x /entrypoint.sh
 
-# The backend writes data to its own parent directory and subfolders usually.
-# We will use symlinks or configure the app to write to /data.
-# Based on src/main.js, it uses Path.resolve(__dirname, '..', ...)
-# So if it's in /app/src, it writes to /app/...
-# We can symlink /app/realms to /data/realms etc.
-RUN ln -s /data/realms /app/realms && \
-    ln -s /data/data /app/data
+# The backend writes data to /app/data and /app/realms
+# We ensure these exist as real directories.
+RUN mkdir -p /app/data /app/realms
 
 ENTRYPOINT ["/entrypoint.sh"]
+
 

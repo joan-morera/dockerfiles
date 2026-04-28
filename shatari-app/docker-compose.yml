@@ -4,7 +4,8 @@ services:
     container_name: shatari-backend
     restart: unless-stopped
     volumes:
-      - shatari-data:/data
+      - shatari-data:/app/data
+      - shatari-realms:/app/realms
     environment:
       - BATTLE_NET_KEY=${BATTLE_NET_KEY}
       - BATTLE_NET_SECRET=${BATTLE_NET_SECRET}
@@ -19,17 +20,11 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - shatari-data:/usr/share/nginx/html/shared_data
-    # Note: We use symlinks in the Dockerfile to point /data and /json to this shared_data
-    # Or we can just mount directly to the expected paths.
-    # In the Dockerfile, we defined:
-    # location /data/ { alias /usr/share/nginx/html/data/; }
-    # location /json/ { alias /usr/share/nginx/html/json/; }
-    # So we should mount accordingly:
-    volumes:
       - shatari-data:/usr/share/nginx/html/data
-      - shatari-data:/usr/share/nginx/html/json
+      - shatari-realms:/usr/share/nginx/html/json/realms
 
 volumes:
   shatari-data:
+  shatari-realms:
+
 
