@@ -1,0 +1,106 @@
+name: Shatari | Build and Publish
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./shatari-app
+    outputs:
+      rebuild: ${{ steps.check.outputs.rebuild }}
+      version_metadata: ${{ steps.meta.outputs.content }}
+      shatari_ver: ${{ steps.get_shatari.outputs.ref }}
+      shatari_front_ver: ${{ steps.get_shatari_front.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get latest Shatari Backend (HEAD)
+        id: get_shatari
+        run: |
+          REF=$(git ls-remote https://github.com/erorus/shatari.git HEAD | awk '{print $1}')
+          echo "ref=${REF}" >> $GITHUB_OUTPUT
+
+      - name: Get latest Shatari Frontend (HEAD)
+        id: get_shatari_front
+        run: |
+          REF=$(git ls-remote https://github.com/erorus/shatari-front.git HEAD | awk '{print $1}')
+          echo "ref=${REF}" >> $GITHUB_OUTPUT
+
+      - name: Get latest Shatari Data (HEAD)
+        id: get_shatari_data
+        run: |
+          REF=$(git ls-remote https://github.com/erorus/shatari-data.git HEAD | awk '{print $1}')
+          echo "ref=${REF}" >> $GITHUB_OUTPUT
+
+      - name: Check for Changes
+        id: check
+        run: |
+          FILE="package-versions-shatari.txt"
+          REBUILD=false
+          
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REBUILD=true
+          else
+            if [ ! -f "$FILE" ]; then
+              REBUILD=true
+            else
+              if ! grep -q "${{ steps.get_shatari.outputs.ref }}" "$FILE"; then REBUILD=true; fi
+              if ! grep -q "${{ steps.get_shatari_front.outputs.ref }}" "$FILE"; then REBUILD=true; fi
+              if ! grep -q "${{ steps.get_shatari_data.outputs.ref }}" "$FILE"; then REBUILD=true; fi
+            fi
+          fi
+          
+          echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT
+
+      - name: Generate Version Metadata
+        id: meta
+        run: |
+          {
+            echo "# Shatari Versions"
+            echo "shatari-backend-${{ steps.get_shatari.outputs.ref }}"
+            echo "shatari-frontend-${{ steps.get_shatari_front.outputs.ref }}"
+            echo "shatari-data-${{ steps.get_shatari_data.outputs.ref }}"
+          } > meta.txt
+          CONTENT=$(cat meta.txt | base64 -w 0)
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
+
+
+  build-backend:
+    needs: check-versions
+    if: needs.check-versions.outputs.rebuild == 'true'
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: shatari-backend
+      context: ./shatari-app/backend
+      dockerfile: ./shatari-app/backend/Dockerfile
+      build_args: |
+        SHATARI_VERSION=${{ needs.check-versions.outputs.shatari_ver }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
+      metadata_dir: ./shatari-app
+      metadata_file: package-versions-shatari.txt
+
+  build-frontend:
+    needs: build-backend
+    if: needs.check-versions.outputs.rebuild == 'true'
+    uses: ./.github/workflows/_build_template.yml
+    with:
+      image_name: shatari-frontend
+      context: ./shatari-app/frontend
+      dockerfile: ./shatari-app/frontend/Dockerfile
+      build_args: |
+        SHATARI_FRONT_VERSION=${{ needs.check-versions.outputs.shatari_front_ver }}
+      rebuild: ${{ needs.check-versions.outputs.rebuild == 'true' }}
+      version_metadata: ${{ needs.check-versions.outputs.version_metadata }}
+      metadata_dir: ./shatari-app
+      metadata_file: package-versions-shatari.txt
+
