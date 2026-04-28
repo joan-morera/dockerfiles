@@ -11,8 +11,11 @@ RUN apk add --no-cache git
 # Clone and build
 RUN git clone https://github.com/erorus/shatari-front.git . && \
     git checkout ${SHATARI_FRONT_VERSION} && \
+    # Remove the hardcoded CSP meta tag that blocks resources on non-production domains
+    sed -i '/Content-Security-Policy/d' index.html && \
     npm install && \
     npm run build
+
 
 # Stage 2: Production
 FROM nginx:alpine
