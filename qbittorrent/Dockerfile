@@ -100,7 +100,6 @@ RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
       threading=multi \
       runtime-link=static \
       cxxflags="$CXXFLAGS" \
-      --with-system \
       --with-filesystem \
       --with-thread \
       --with-date_time \
