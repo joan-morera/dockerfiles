@@ -20,8 +20,10 @@ services:
     ports:
       - "8080:80"
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - shatari-data:/usr/share/nginx/html/data
       - shatari-realms:/usr/share/nginx/html/json/realms
+
 
 volumes:
   shatari-data:
