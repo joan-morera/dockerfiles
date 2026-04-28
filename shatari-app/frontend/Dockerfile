@@ -23,8 +23,12 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy static JSON files that are not part of the Vite build
+COPY --from=builder /app/json /usr/share/nginx/html/json
+
 # Create directories for mounting backend data
-RUN mkdir -p /usr/share/nginx/html/data /usr/share/nginx/html/json
+RUN mkdir -p /usr/share/nginx/html/data /usr/share/nginx/html/json/realms
+
 
 # Note: Nginx config should be mounted externally at /etc/nginx/conf.d/default.conf
 
