@@ -27,6 +27,10 @@ ENV BATTLE_NET_KEY="" \
 # The script exits if another instance is running, so we just loop it.
 COPY <<EOF /entrypoint.sh
 #!/bin/bash
+# Generate realm list first so the frontend has data to show
+echo "[$(date)] Generating realm list..."
+node src/realmList.js || echo "[$(date)] Warning: Realm list generation failed. Using existing data if any."
+
 while true; do
     echo "[$(date)] Starting Shatari worker..."
     node src/main.js
@@ -34,6 +38,7 @@ while true; do
     sleep 60
 done
 EOF
+
 
 RUN chmod +x /entrypoint.sh
 
