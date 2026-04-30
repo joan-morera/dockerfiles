@@ -1,6 +1,6 @@
 # I2PD Versions
 i2pd-2.60.0
-mimalloc-v3.3.1
+mimalloc-v3.3.2
 
 # Library Dependencies
 boost1.84-static-1.84.0-r3
