@@ -34,8 +34,7 @@ jobs:
       - name: Get latest qBittorrent
         id: get_qbt
         run: |
-          TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/qbittorrent/qBittorrent.git \
-            | grep "refs/tags/release-" | grep -v "rc\|beta\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          TAG="release-5.1.4"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Get latest Libtorrent v1
