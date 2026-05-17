@@ -4,8 +4,8 @@ mimalloc-v3.3.2
 
 # Library Dependencies
 libboost-program-options-dev-1.83.0.2+b2
-libc6-dev-2.41-12+deb13u2
+libc6-dev-2.41-12+deb13u3
 libminiupnpc-dev-2.2.8-2+b2
-libssl-dev-3.5.5-1~deb13u2
+libssl-dev-3.5.6-1~deb13u1
 libz-dev-(none)
 libzstd-dev-1.5.7+dfsg-1
