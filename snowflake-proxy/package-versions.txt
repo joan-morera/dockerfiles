@@ -4,4 +4,6 @@ snowflake-version-cee56c134d85715ad9a443f7894b1728c5f37417
 
 # Alpine Packages
 ca-certificates-20260413-r0
-go-1.25.9-r0
+go-1.25.10-r0
+tor-0.4.9.8-r0
+tzdata-2026b-r0
