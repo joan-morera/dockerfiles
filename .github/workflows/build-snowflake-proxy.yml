@@ -32,8 +32,8 @@ jobs:
       - name: Check for Alpine package versions
         id: get_pkgs
         run: |
-          # Track go and ca-certificates as per rules
-          docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null; for pkg in go ca-certificates; do apk search -x \$pkg 2>/dev/null | head -1; done" | grep -v '^$' | sort > current-packages.txt
+          # Track go, ca-certificates, tor, and tzdata as per rules
+          docker run --rm alpine:latest sh -c "apk update -q 2>/dev/null; for pkg in go ca-certificates tor tzdata; do apk search -x \$pkg 2>/dev/null | head -1; done" | grep -v '^$' | sort > current-packages.txt
 
       - name: Check for Changes
         id: check
