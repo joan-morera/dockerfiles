@@ -67,10 +67,10 @@ jobs:
           echo "v1=${V1}" >> $GITHUB_OUTPUT
           echo "v2=${V2}" >> $GITHUB_OUTPUT
 
-      - name: Get latest OpenSSL
+      - name: Get latest OpenSSL 3.5 LTS
         id: get_ssl
         run: |
-           TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/openssl/openssl.git | grep -E "refs/tags/openssl-[0-9]+\.[0-9]+\.[0-9]+$" | tail -n1 | sed 's/.*\///')
+           TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/openssl/openssl.git | grep -E "refs/tags/openssl-3\.5\.[0-9]+$" | tail -n1 | sed 's/.*\///')
            echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Get latest Mimalloc
