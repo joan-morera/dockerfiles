@@ -1,5 +1,5 @@
 # qBittorrent V1 Versions
-qbittorrent-release-5.2.1
+qbittorrent-release-5.1.4
 libtorrent-v1-v1.2.20
 qt-v6.11.1
 boost-v1-boost-1.86.0
