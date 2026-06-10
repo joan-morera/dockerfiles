@@ -23,9 +23,6 @@ jobs:
       qbt_ver: ${{ steps.get_qbt.outputs.tag }}
       libt_v2_ref: ${{ steps.get_libt_v2.outputs.ref }}
       qt_ver: ${{ steps.get_qt.outputs.tag }}
-      boost_v1_ver: ${{ steps.get_boost.outputs.v1 }}
-      boost_v2_ver: ${{ steps.get_boost.outputs.v2 }}
-      ssl_ver: ${{ steps.get_ssl.outputs.tag }}
       libt_v1_ver: ${{ steps.get_libt_v1.outputs.tag }}
       mimalloc_ver: ${{ steps.get_mimalloc.outputs.tag }}
     steps:
@@ -34,8 +31,6 @@ jobs:
       - name: Get latest qBittorrent
         id: get_qbt
         run: |
-          # TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/qbittorrent/qBittorrent.git \
-          #   | grep "refs/tags/release-" | grep -v "rc\|beta\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
           TAG="release-5.1.4"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
@@ -59,20 +54,6 @@ jobs:
              | grep -E "refs/tags/v[0-9]+\." | grep -v "beta\|rc\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
            echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Get Boost Versions
-        id: get_boost
-        run: |
-          V1=$(git ls-remote --tags --sort='v:refname' https://github.com/boostorg/boost.git | grep "refs/tags/boost-1.86" | grep -v "beta\|rc\|alpha" | tail -n1 | sed 's/.*\///')
-          V2=$(git ls-remote --tags --sort='v:refname' https://github.com/boostorg/boost.git | grep -E "refs/tags/boost-[0-9]+" | grep -v "beta\|rc\|alpha" | tail -n1 | sed 's/.*\///')
-          echo "v1=${V1}" >> $GITHUB_OUTPUT
-          echo "v2=${V2}" >> $GITHUB_OUTPUT
-
-      - name: Get latest OpenSSL 3.5 LTS
-        id: get_ssl
-        run: |
-           TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/openssl/openssl.git | grep -E "refs/tags/openssl-3\.5\.[0-9]+$" | tail -n1 | sed 's/.*\///')
-           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-
       - name: Get latest Mimalloc
         id: get_mimalloc
         run: |
@@ -80,7 +61,14 @@ jobs:
              | grep "refs/tags/v" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
            echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Check for Changes
+      - name: Get Alpine Toolchain & Package Versions
+        id: get_alpine
+        run: |
+          docker run --rm alpine:latest sh -c "apk update >/dev/null && apk list openssl-libs-static boost-static cmake gcc musl-dev" | awk '{print $1}' | sort > current-packages.txt
+          echo "Fetched Alpine package versions:"
+          cat current-packages.txt
+
+      - name: Compare and Check Versions
         id: check
         run: |
           FILE_V1="package-versions-lt1.txt"
@@ -88,31 +76,125 @@ jobs:
           REBUILD_V1=false
           REBUILD_V2=false
           
+          # Construct expected package lists for comparison
+          QBT_VER="${{ steps.get_qbt.outputs.tag }}"
+          LIBT_V1_VER="${{ steps.get_libt_v1.outputs.tag }}"
+          LIBT_V2_REF="${{ steps.get_libt_v2.outputs.ref }}"
+          QT_VER="${{ steps.get_qt.outputs.tag }}"
+          MIMALLOC_VER="${{ steps.get_mimalloc.outputs.tag }}"
+          
+          echo "### Version Check & Rebuild Report" >> $GITHUB_STEP_SUMMARY
+          
+          # V1 Check
+          echo "#### qBittorrent V1 (Libtorrent v1) Status" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             REBUILD_V1=true
-            REBUILD_V2=true
+            echo "- **Triggered manually via workflow_dispatch. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+          elif [ ! -f "$FILE_V1" ]; then
+            REBUILD_V1=true
+            echo "- **No existing version metadata found. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
           else
-            # V1 check
-            if [ ! -f "$FILE_V1" ]; then
+            # Extract and compare individual items
+            OLD_QBT=$(grep "^qbittorrent-" "$FILE_V1" | sed 's/qbittorrent-//' || true)
+            OLD_LIBT=$(grep "^libtorrent-v1-" "$FILE_V1" | sed 's/libtorrent-v1-//' || true)
+            OLD_QT=$(grep "^qt-" "$FILE_V1" | sed 's/qt-//' || true)
+            OLD_MIMALLOC=$(grep "^mimalloc-" "$FILE_V1" | sed 's/mimalloc-//' || true)
+            
+            echo "| Component | Cached Version | Upstream/New Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            # Helper to print and detect diffs
+            check_diff() {
+              local name=$1; local old=$2; local new=$3
+              if [ "$old" != "$new" ]; then
+                echo "| $name | $old | $new | 🆕 Update available |" >> $GITHUB_STEP_SUMMARY
+                return 1
+              else
+                echo "| $name | $old | $new |  Up to date |" >> $GITHUB_STEP_SUMMARY
+                return 0
+              fi
+            }
+            
+            DIFF_DETECTED=0
+            check_diff "qBittorrent" "$OLD_QBT" "$QBT_VER" || DIFF_DETECTED=1
+            check_diff "Libtorrent" "$OLD_LIBT" "$LIBT_V1_VER" || DIFF_DETECTED=1
+            check_diff "Qt" "$OLD_QT" "$QT_VER" || DIFF_DETECTED=1
+            check_diff "Mimalloc" "$OLD_MIMALLOC" "$MIMALLOC_VER" || DIFF_DETECTED=1
+            
+            # Compare build dependencies (stored as lines after # Build Dependencies or matching package name)
+            echo "##### Build Toolchain & Alpine Dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "| Package | Cached Version | Alpine Repository Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            while read -r line; do
+              pkg_name=$(echo "$line" | cut -d- -f1-2)
+              # Also handle single-dash package names
+              if ! grep -q "^${pkg_name}-" "$FILE_V1"; then
+                pkg_name=$(echo "$line" | cut -d- -f1)
+              fi
+              old_line=$(grep "^${pkg_name}-" "$FILE_V1" || true)
+              if [ "$old_line" != "$line" ]; then
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} | 🆕 Update available |" >> $GITHUB_STEP_SUMMARY
+                DIFF_DETECTED=1
+              else
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} |  Up to date |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done < current-packages.txt
+            
+            if [ $DIFF_DETECTED -eq 1 ]; then
               REBUILD_V1=true
+              echo "- **Changes detected. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
             else
-              if ! grep -q "${{ steps.get_qbt.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! grep -q "${{ steps.get_libt_v1.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! grep -q "${{ steps.get_qt.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! grep -q "${{ steps.get_boost.outputs.v1 }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
-              if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V1"; then REBUILD_V1=true; fi
+              echo "- **No changes detected. Skipping build.**" >> $GITHUB_STEP_SUMMARY
             fi
-            # V2 check
-            if [ ! -f "$FILE_V2" ]; then
+          fi
+          
+          # V2 Check
+          echo "#### qBittorrent V2 (Libtorrent v2) Status" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REBUILD_V2=true
+            echo "- **Triggered manually via workflow_dispatch. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+          elif [ ! -f "$FILE_V2" ]; then
+            REBUILD_V2=true
+            echo "- **No existing version metadata found. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+          else
+            OLD_QBT=$(grep "^qbittorrent-" "$FILE_V2" | sed 's/qbittorrent-//' || true)
+            OLD_LIBT=$(grep "^libtorrent-v2-branch-" "$FILE_V2" | sed 's/libtorrent-v2-branch-//' || true)
+            OLD_QT=$(grep "^qt-" "$FILE_V2" | sed 's/qt-//' || true)
+            OLD_MIMALLOC=$(grep "^mimalloc-" "$FILE_V2" | sed 's/mimalloc-//' || true)
+            
+            echo "| Component | Cached Version | Upstream/New Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            DIFF_DETECTED=0
+            check_diff "qBittorrent" "$OLD_QBT" "$QBT_VER" || DIFF_DETECTED=1
+            check_diff "Libtorrent" "$OLD_LIBT" "$LIBT_V2_REF" || DIFF_DETECTED=1
+            check_diff "Qt" "$OLD_QT" "$QT_VER" || DIFF_DETECTED=1
+            check_diff "Mimalloc" "$OLD_MIMALLOC" "$MIMALLOC_VER" || DIFF_DETECTED=1
+            
+            echo "##### Build Toolchain & Alpine Dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "| Package | Cached Version | Alpine Repository Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            while read -r line; do
+              pkg_name=$(echo "$line" | cut -d- -f1-2)
+              if ! grep -q "^${pkg_name}-" "$FILE_V2"; then
+                pkg_name=$(echo "$line" | cut -d- -f1)
+              fi
+              old_line=$(grep "^${pkg_name}-" "$FILE_V2" || true)
+              if [ "$old_line" != "$line" ]; then
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} | 🆕 Update available |" >> $GITHUB_STEP_SUMMARY
+                DIFF_DETECTED=1
+              else
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} |  Up to date |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done < current-packages.txt
+            
+            if [ $DIFF_DETECTED -eq 1 ]; then
               REBUILD_V2=true
+              echo "- **Changes detected. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
             else
-              if ! grep -q "${{ steps.get_qbt.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! grep -q "${{ steps.get_libt_v2.outputs.ref }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! grep -q "${{ steps.get_qt.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! grep -q "${{ steps.get_boost.outputs.v2 }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! grep -q "${{ steps.get_ssl.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
-              if ! grep -q "${{ steps.get_mimalloc.outputs.tag }}" "$FILE_V2"; then REBUILD_V2=true; fi
+              echo "- **No changes detected. Skipping build.**" >> $GITHUB_STEP_SUMMARY
             fi
           fi
           
@@ -127,9 +209,10 @@ jobs:
             echo "qbittorrent-${{ steps.get_qbt.outputs.tag }}"
             echo "libtorrent-v1-${{ steps.get_libt_v1.outputs.tag }}"
             echo "qt-${{ steps.get_qt.outputs.tag }}"
-            echo "boost-v1-${{ steps.get_boost.outputs.v1 }}"
-            echo "openssl-${{ steps.get_ssl.outputs.tag }}"
             echo "mimalloc-${{ steps.get_mimalloc.outputs.tag }}"
+            echo ""
+            echo "# Build Dependencies"
+            cat current-packages.txt
           } > meta_v1.txt
           CONTENT=$(cat meta_v1.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
@@ -142,9 +225,10 @@ jobs:
             echo "qbittorrent-${{ steps.get_qbt.outputs.tag }}"
             echo "libtorrent-v2-branch-${{ steps.get_libt_v2.outputs.ref }}"
             echo "qt-${{ steps.get_qt.outputs.tag }}"
-            echo "boost-v2-${{ steps.get_boost.outputs.v2 }}"
-            echo "openssl-${{ steps.get_ssl.outputs.tag }}"
             echo "mimalloc-${{ steps.get_mimalloc.outputs.tag }}"
+            echo ""
+            echo "# Build Dependencies"
+            cat current-packages.txt
           } > meta_v2.txt
           CONTENT=$(cat meta_v2.txt | base64 -w 0)
           echo "content=$CONTENT" >> $GITHUB_OUTPUT
@@ -160,8 +244,6 @@ jobs:
         QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_ver }}
         LIBTORRENT_VERSION=${{ needs.check-versions.outputs.libt_v1_ver }}
         QT_VERSION=${{ needs.check-versions.outputs.qt_ver }}
-        BOOST_VERSION=${{ needs.check-versions.outputs.boost_v1_ver }}
-        OPENSSL_VERSION=${{ needs.check-versions.outputs.ssl_ver }}
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v1 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v1 }}
@@ -187,8 +269,6 @@ jobs:
         QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_ver }}
         LIBTORRENT_VERSION=${{ needs.check-versions.outputs.libt_v2_ref }}
         QT_VERSION=${{ needs.check-versions.outputs.qt_ver }}
-        BOOST_VERSION=${{ needs.check-versions.outputs.boost_v2_ver }}
-        OPENSSL_VERSION=${{ needs.check-versions.outputs.ssl_ver }}
         MIMALLOC_VERSION=${{ needs.check-versions.outputs.mimalloc_ver }}
       rebuild: ${{ needs.check-versions.outputs.rebuild_v2 == 'true' }}
       version_metadata: ${{ needs.check-versions.outputs.version_metadata_v2 }}

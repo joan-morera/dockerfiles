@@ -41,12 +41,52 @@ jobs:
           REBUILD=false
           VERSION="${{ steps.get_latest_release.outputs.tag }}"
           
+          echo "### Alfis Version Check & Rebuild Report" >> $GITHUB_STEP_SUMMARY
+          
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             REBUILD=true
-          elif [ ! -f $FILE ] || ! grep -q "$VERSION" $FILE; then
+            echo "- **Triggered manually via workflow_dispatch. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+          elif [ ! -f "$FILE" ]; then
             REBUILD=true
-          elif ! diff -q current-packages.txt <(grep -vE "^(alfis-|#)" $FILE | grep -v "^$" | sort); then
-             REBUILD=true
+            echo "- **No existing version metadata found. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+          else
+            OLD_ALFIS=$(grep "^alfis-" "$FILE" | sed 's/alfis-//' || true)
+            
+            echo "| Component | Cached Version | Upstream/New Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            DIFF_DETECTED=0
+            if [ "$OLD_ALFIS" != "$VERSION" ]; then
+              echo "| Alfis | $OLD_ALFIS | $VERSION | 🆕 Update available |" >> $GITHUB_STEP_SUMMARY
+              DIFF_DETECTED=1
+            else
+              echo "| Alfis | $OLD_ALFIS | $VERSION |  Up to date |" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "##### Build Toolchain & Alpine Dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "| Package | Cached Version | Alpine Repository Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+            
+            while read -r line; do
+              pkg_name=$(echo "$line" | cut -d- -f1-2)
+              if ! grep -q "^${pkg_name}-" "$FILE"; then
+                pkg_name=$(echo "$line" | cut -d- -f1)
+              fi
+              old_line=$(grep "^${pkg_name}-" "$FILE" || true)
+              if [ "$old_line" != "$line" ]; then
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} | 🆕 Update available |" >> $GITHUB_STEP_SUMMARY
+                DIFF_DETECTED=1
+              else
+                echo "| $pkg_name | ${old_line#$pkg_name-} | ${line#$pkg_name-} |  Up to date |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done < current-packages.txt
+            
+            if [ $DIFF_DETECTED -eq 1 ]; then
+              REBUILD=true
+              echo "- **Changes detected. Rebuilding.**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **No changes detected. Skipping build.**" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           
           echo "rebuild=$REBUILD" >> $GITHUB_OUTPUT

@@ -26,18 +26,23 @@ RUN apk add --no-cache \
     glib-static \
     brotli-static \
     expat-static \
-    aria2
+    aria2 \
+    openssl-dev \
+    openssl-libs-static \
+    boost-dev \
+    boost-static
 
 # Remove the unversioned linker symlinks so cmake finds only .a throughout all
 # build steps. The runtime .so.1 files are preserved (wget/curl still work).
-RUN rm -f /usr/lib/libz.so /usr/lib/libzstd.so /usr/lib/libbrotlidec.so /usr/lib/libbrotlienc.so /usr/lib/libbrotlicommon.so
+RUN rm -f /usr/lib/libz.so /usr/lib/libzstd.so \
+          /usr/lib/libbrotlidec.so /usr/lib/libbrotlienc.so /usr/lib/libbrotlicommon.so \
+          /usr/lib/libssl.so /usr/lib/libcrypto.so \
+          /usr/lib/libboost_*.so
 
 # Arguments (Versions)
 ARG QBITTORRENT_VERSION
 ARG LIBTORRENT_VERSION
 ARG QT_VERSION
-ARG BOOST_VERSION
-ARG OPENSSL_VERSION
 ARG MIMALLOC_VERSION
 
 # Common Hardening & Optimization Flags
@@ -54,23 +59,7 @@ ENV CFLAGS="${CFLAGS} -I/usr/local/include" \
 
 WORKDIR /build
 
-# 2. Build OpenSSL (Static)
-ARG TARGETARCH
-RUN echo "[BUILD] Building OpenSSL ${OPENSSL_VERSION} for ${TARGETARCH}..." && \
-    wget -q "https://github.com/openssl/openssl/archive/refs/tags/${OPENSSL_VERSION}.tar.gz" -O openssl.tar.gz && \
-    tar xzf openssl.tar.gz && \
-    cd openssl-openssl-$(echo $OPENSSL_VERSION | sed 's/openssl-//') && \
-    if [ "$TARGETARCH" = "amd64" ]; then \
-        OPENSSL_TARGET="linux-x86_64"; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
-        OPENSSL_TARGET="linux-aarch64"; \
-    fi && \
-    ./config --prefix=/usr/local --openssldir=/usr/local/ssl no-shared "$CFLAGS" $OPENSSL_TARGET && \
-    make -j$(nproc) && \
-    make install_sw && \
-    cd .. && rm -rf openssl*
-
-# 3. Build Mimalloc (Static)
+# 2. Build Mimalloc (Static)
 RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
     wget -q "https://github.com/microsoft/mimalloc/archive/refs/tags/${MIMALLOC_VERSION}.tar.gz" -O mimalloc.tar.gz && \
     tar xzf mimalloc.tar.gz && \
@@ -89,25 +78,7 @@ RUN echo "[BUILD] Building Mimalloc ${MIMALLOC_VERSION}..." && \
     make install && \
     cd ../.. && rm -rf mimalloc*
 
-# 4. Build Boost (Static)
-RUN echo "[BUILD] Building Boost ${BOOST_VERSION}..." && \
-    git clone -q --depth 1 --branch ${BOOST_VERSION} --recurse-submodules https://github.com/boostorg/boost.git boost-src && \
-    cd boost-src && \
-    ./bootstrap.sh --prefix=/usr/local && \
-    ./b2 -j$(nproc) install \
-      variant=release \
-      link=static \
-      threading=multi \
-      runtime-link=static \
-      cxxflags="$CXXFLAGS" \
-      --with-filesystem \
-      --with-thread \
-      --with-date_time \
-      --with-chrono \
-    && \
-    cd .. && rm -rf boost-src
-
-# 5. Build Qt6 (Static, Minimal)
+# 3. Build Qt6 (Static, Minimal)
 # Qt's configure reads LDFLAGS and forwards it to cmake, which applies it to
 # Qt's own host tool executables (qmake, etc.). Those tools run only in the
 # builder container and must NOT use -static, or the linker will reject system
@@ -160,7 +131,7 @@ RUN export LDFLAGS="-Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -flto -L/usr/local
     cmake --install . && \
     cd .. && rm -rf qttools*
 
-# 6. Build Libtorrent (Static)
+# 4. Build Libtorrent (Static)
 RUN echo "[BUILD] Building Libtorrent ${LIBTORRENT_VERSION}..." && \
     git clone -q --recurse-submodules https://github.com/arvidn/libtorrent.git && \
     cd libtorrent && \
@@ -179,7 +150,7 @@ RUN echo "[BUILD] Building Libtorrent ${LIBTORRENT_VERSION}..." && \
     cmake --install build && \
     cd .. && rm -rf libtorrent
 
-# 7. Build qBittorrent (Static)
+# 5. Build qBittorrent (Static)
 RUN echo "[BUILD] Building qBittorrent ${QBITTORRENT_VERSION}..." && \
     git clone -q --depth 1 --branch ${QBITTORRENT_VERSION} https://github.com/qbittorrent/qBittorrent.git && \
     cd qBittorrent && \
@@ -198,12 +169,12 @@ RUN echo "[BUILD] Building qBittorrent ${QBITTORRENT_VERSION}..." && \
     strip /usr/local/bin/qbittorrent-nox && \
     cd .. && rm -rf qBittorrent
 
-# 8. User Setup
+# 6. User Setup
 RUN adduser -D -u 1000 -h /home/qbt -s /bin/false qbt && \
     mkdir -p /home/qbt/data /usr/share/qbt && \
     chown -R qbt:qbt /home/qbt
 
-# 9. Prepare Dist Files (Scratch Migration)
+# 7. Prepare Dist Files (Scratch Migration)
 # Binary is fully static (musl), no glibc shared libs needed.
 RUN mkdir -p /dist/etc/ssl /dist/tmp /dist/home/qbt/data /dist/usr/bin && \
     chmod 1777 /dist/tmp && \
