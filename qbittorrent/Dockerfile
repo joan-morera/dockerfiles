@@ -30,7 +30,7 @@ RUN apk add --no-cache \
 
 # Remove the unversioned linker symlinks so cmake finds only .a throughout all
 # build steps. The runtime .so.1 files are preserved (wget/curl still work).
-RUN rm -f /usr/lib/libz.so /usr/lib/libzstd.so
+RUN rm -f /usr/lib/libz.so /usr/lib/libzstd.so /usr/lib/libbrotlidec.so /usr/lib/libbrotlienc.so /usr/lib/libbrotlicommon.so
 
 # Arguments (Versions)
 ARG QBITTORRENT_VERSION
