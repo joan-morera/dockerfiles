@@ -277,7 +277,7 @@ jobs:
             "platform": "linux/arm64",
             "runner": "ubuntu-24.04-arm",
             "suffix": "rpi4",
-            "build_args": "CFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections\nCXXFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
+            "build_args": "CFLAGS=-Os -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections\nCXXFLAGS=-Os -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
           }
         ]
 
@@ -304,6 +304,6 @@ jobs:
             "platform": "linux/arm64",
             "runner": "ubuntu-24.04-arm",
             "suffix": "rpi4",
-            "build_args": "CFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections\nCXXFLAGS=-O3 -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
+            "build_args": "CFLAGS=-Os -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections\nCXXFLAGS=-Os -mcpu=cortex-a72 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
           }
         ]

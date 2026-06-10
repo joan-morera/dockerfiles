@@ -42,8 +42,8 @@ ARG MIMALLOC_VERSION
 
 # Common Hardening & Optimization Flags
 # Added -static and --gc-sections for fully static build on Alpine
-ARG CFLAGS="-O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections"
-ARG CXXFLAGS="-O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
+ARG CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -ffunction-sections -fdata-sections"
+ARG CXXFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -flto -fvisibility=hidden -ffunction-sections -fdata-sections"
 ARG LDFLAGS="-Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -static -flto"
 
 # Force inclusion of local static libs
