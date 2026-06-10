@@ -3,5 +3,10 @@ qbittorrent-release-5.1.4
 libtorrent-v1-v1.2.20
 qt-v6.11.1
 boost-v1-boost-1.86.0
-openssl-openssl-3.5.6
+openssl-openssl-3.5.7
 mimalloc-v3.3.2
+
+# Build Dependencies
+cmake-4.2.3-r0
+gcc-15.2.0-r5
+musl-dev-1.2.6-r2
