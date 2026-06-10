@@ -191,7 +191,8 @@ RUN echo "[BUILD] Building qBittorrent ${QBITTORRENT_VERSION}..." && \
       -DSTACKTRACE=OFF \
       -DCMAKE_CXX_STANDARD=20 \
       -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
-      -DLIBS="-lmimalloc -latomic -lssl -lcrypto -lbrotlidec -lbrotlicommon" \
+      -DLIBS="-lmimalloc -latomic -lssl -lcrypto" \
+      -DCMAKE_EXE_LINKER_FLAGS="-lbrotlicommon" \
       && \
     cmake --build build --parallel $(nproc) && \
     cmake --install build && \
