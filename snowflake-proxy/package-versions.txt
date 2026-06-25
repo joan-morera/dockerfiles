@@ -1,9 +1,9 @@
 # Snowflake Proxy Versions
 
-snowflake-version-1f922decee2d46e0c72d086b426b8177dc6d6de5
+snowflake-version-3941c8ccc4d59940ad92ed1f69d8700c101c4d11
 
 # Alpine Packages
 ca-certificates-20260611-r0
 go-1.26.3-r0
-tor-0.4.9.9-r0
+tor-0.4.9.10-r0
 tzdata-2026b-r0
