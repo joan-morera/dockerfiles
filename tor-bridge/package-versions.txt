@@ -4,7 +4,7 @@ tor-4b996aa6469ac78fe746bcc8d6d8f100643e3c01
 
 # Build Dependencies (Alpine)
 libcap-dev-2.78-r0
-libevent-dev-2.1.12-r9
+libevent-dev-2.1.13-r0
 libseccomp-dev-2.6.0-r2
 lz4-dev-1.10.0-r1
 openssl-dev-3.5.7-r0
