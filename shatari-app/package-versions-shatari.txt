@@ -1,4 +1,4 @@
 # Shatari Versions
-shatari-backend-7129d13a0ed13ed8896b6e56c9fe03dd5dc59f96
-shatari-frontend-20a770d2048808325ba06b0ba0ce4edc14518528
+shatari-backend-6683312cd0b86965c9ee64dd84186b3da2351c2e
+shatari-frontend-0ae398a917ec03db12c79000b5d04444f29768b5
 shatari-data-75b47b491573a727fbdb58f9d3a56e7039b1c0d3
