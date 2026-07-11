@@ -49,7 +49,7 @@ jobs:
       - name: Get latest Libtorrent v2
         id: get_libt_v2
         run: |
-          REF=$(git ls-remote https://github.com/arvidn/libtorrent.git HEAD | awk '{print $1}')
+          REF=$(git ls-remote https://github.com/arvidn/libtorrent.git refs/heads/RC_2_1 | awk '{print $1}')
           echo "ref=${REF}" >> $GITHUB_OUTPUT
 
       - name: Get latest Qt 6
