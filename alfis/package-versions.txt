@@ -1,5 +1,5 @@
 # Alfis Versions
-alfis-v0.8.11
+alfis-v0.9.0
 
 # Build Dependencies
 cargo-1.96.0-r0
