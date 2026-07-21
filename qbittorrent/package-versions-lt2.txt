@@ -1,10 +1,10 @@
 # qBittorrent V2 Versions
-qbittorrent-f239bebc4b1a17f24f0f546f192a24a9d6f80938
-libtorrent-v2-branch-0d961fdca09546ccda9e270f4f8a74ce0c0c9425
+qbittorrent-e70f13d46a42b204559d0e7b16a19eeca522fe9e
+libtorrent-v2-branch-bc2df3c8cf730b34999a77ae13caf596c2aa5ce4
 qt-v6.11.1
 boost-v2-boost-1.91.0-1
 openssl-openssl-3.5.7
-mimalloc-v3.3.2
+mimalloc-v3.4.3
 
 # Build Dependencies
 cmake-4.2.3-r0
