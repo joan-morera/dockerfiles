@@ -4,7 +4,7 @@ libtorrent-v1-v1.2.20
 qt-v6.11.1
 boost-v1-boost-1.86.0
 openssl-openssl-3.5.7
-mimalloc-v3.4.1
+mimalloc-v3.4.3
 
 # Build Dependencies
 cmake-4.2.3-r0
