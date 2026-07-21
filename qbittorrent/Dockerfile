@@ -181,8 +181,9 @@ RUN echo "[BUILD] Building Libtorrent ${LIBTORRENT_VERSION}..." && \
 
 # 7. Build qBittorrent (Static)
 RUN echo "[BUILD] Building qBittorrent ${QBITTORRENT_VERSION}..." && \
-    git clone -q --depth 1 --branch ${QBITTORRENT_VERSION} https://github.com/qbittorrent/qBittorrent.git && \
+    git clone -q https://github.com/qbittorrent/qBittorrent.git && \
     cd qBittorrent && \
+    git checkout ${QBITTORRENT_VERSION} && \
     cmake -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX=/usr/local \

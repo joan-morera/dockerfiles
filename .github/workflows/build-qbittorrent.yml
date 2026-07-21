@@ -20,7 +20,8 @@ jobs:
       rebuild_v2: ${{ steps.check.outputs.rebuild_v2 }}
       version_metadata_v1: ${{ steps.meta_v1.outputs.content }}
       version_metadata_v2: ${{ steps.meta_v2.outputs.content }}
-      qbt_ver: ${{ steps.get_qbt.outputs.tag }}
+      qbt_v1_ver: ${{ steps.get_qbt_v1.outputs.tag }}
+      qbt_v2_ver: ${{ steps.get_qbt_v2.outputs.tag }}
       libt_v2_ref: ${{ steps.get_libt_v2.outputs.ref }}
       qt_ver: ${{ steps.get_qt.outputs.tag }}
       boost_v1_ver: ${{ steps.get_boost.outputs.v1 }}
@@ -31,11 +32,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Get latest qBittorrent
-        id: get_qbt
+      - name: Get latest qBittorrent Release (v1)
+        id: get_qbt_v1
         run: |
           TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/qbittorrent/qBittorrent.git \
             | grep "refs/tags/release-" | grep -v "rc\|beta\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Get latest qBittorrent Git (v2)
+        id: get_qbt_v2
+        run: |
+          # TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/qbittorrent/qBittorrent.git \
+          #   | grep "refs/tags/release-" | grep -v "rc\|beta\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
+          TAG=$(git ls-remote https://github.com/qbittorrent/qBittorrent.git HEAD | awk '{print $1}')
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Get latest Libtorrent v1
@@ -94,7 +103,8 @@ jobs:
           REBUILD_V1=false
           REBUILD_V2=false
           
-          QBT_VER="${{ steps.get_qbt.outputs.tag }}"
+          QBT_V1_VER="${{ steps.get_qbt_v1.outputs.tag }}"
+          QBT_V2_VER="${{ steps.get_qbt_v2.outputs.tag }}"
           LIBT_V1_VER="${{ steps.get_libt_v1.outputs.tag }}"
           LIBT_V2_REF="${{ steps.get_libt_v2.outputs.ref }}"
           QT_VER="${{ steps.get_qt.outputs.tag }}"
@@ -136,7 +146,7 @@ jobs:
             }
             
             DIFF_DETECTED=0
-            check_diff "qBittorrent" "$OLD_QBT" "$QBT_VER" || DIFF_DETECTED=1
+            check_diff "qBittorrent" "$OLD_QBT" "$QBT_V1_VER" || DIFF_DETECTED=1
             check_diff "Libtorrent" "$OLD_LIBT" "$LIBT_V1_VER" || DIFF_DETECTED=1
             check_diff "Qt" "$OLD_QT" "$QT_VER" || DIFF_DETECTED=1
             check_diff "Boost" "$OLD_BOOST" "$BOOST_V1_VER" || DIFF_DETECTED=1
@@ -186,7 +196,7 @@ jobs:
             echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
             
             DIFF_DETECTED=0
-            check_diff "qBittorrent" "$OLD_QBT" "$QBT_VER" || DIFF_DETECTED=1
+            check_diff "qBittorrent" "$OLD_QBT" "$QBT_V2_VER" || DIFF_DETECTED=1
             check_diff "Libtorrent" "$OLD_LIBT" "$LIBT_V2_REF" || DIFF_DETECTED=1
             check_diff "Qt" "$OLD_QT" "$QT_VER" || DIFF_DETECTED=1
             check_diff "Boost" "$OLD_BOOST" "$BOOST_V2_VER" || DIFF_DETECTED=1
@@ -224,7 +234,7 @@ jobs:
         run: |
           {
             echo "# qBittorrent V1 Versions"
-            echo "qbittorrent-${{ steps.get_qbt.outputs.tag }}"
+            echo "qbittorrent-${{ steps.get_qbt_v1.outputs.tag }}"
             echo "libtorrent-v1-${{ steps.get_libt_v1.outputs.tag }}"
             echo "qt-${{ steps.get_qt.outputs.tag }}"
             echo "boost-v1-${{ steps.get_boost.outputs.v1 }}"
@@ -242,7 +252,7 @@ jobs:
         run: |
           {
             echo "# qBittorrent V2 Versions"
-            echo "qbittorrent-${{ steps.get_qbt.outputs.tag }}"
+            echo "qbittorrent-${{ steps.get_qbt_v2.outputs.tag }}"
             echo "libtorrent-v2-branch-${{ steps.get_libt_v2.outputs.ref }}"
             echo "qt-${{ steps.get_qt.outputs.tag }}"
             echo "boost-v2-${{ steps.get_boost.outputs.v2 }}"
@@ -263,7 +273,7 @@ jobs:
       context: ./qbittorrent
       dockerfile: ./qbittorrent/Dockerfile
       build_args: |
-        QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_ver }}
+        QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_v1_ver }}
         LIBTORRENT_VERSION=${{ needs.check-versions.outputs.libt_v1_ver }}
         QT_VERSION=${{ needs.check-versions.outputs.qt_ver }}
         BOOST_VERSION=${{ needs.check-versions.outputs.boost_v1_ver }}
@@ -290,7 +300,7 @@ jobs:
       context: ./qbittorrent
       dockerfile: ./qbittorrent/Dockerfile
       build_args: |
-        QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_ver }}
+        QBITTORRENT_VERSION=${{ needs.check-versions.outputs.qbt_v2_ver }}
         LIBTORRENT_VERSION=${{ needs.check-versions.outputs.libt_v2_ref }}
         QT_VERSION=${{ needs.check-versions.outputs.qt_ver }}
         BOOST_VERSION=${{ needs.check-versions.outputs.boost_v2_ver }}
