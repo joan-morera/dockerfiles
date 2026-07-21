@@ -1,6 +1,6 @@
 # Tor Bridge Versions
 lyrebird-fc105a03c0e0acc2479301c361c012ffed359c43
-tor-4b996aa6469ac78fe746bcc8d6d8f100643e3c01
+tor-2fbdc52d625c02a9787c9215cd5d1818dd575e4d
 
 # Build Dependencies (Alpine)
 libcap-dev-2.78-r0
