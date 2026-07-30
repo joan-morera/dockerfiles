@@ -44,9 +44,7 @@ jobs:
         run: |
           # TAG=$(git ls-remote --tags --sort='v:refname' https://github.com/qbittorrent/qBittorrent.git \
           #   | grep "refs/tags/release-" | grep -v "rc\|beta\|alpha" | grep -v "\^{}" | tail -n1 | sed 's/.*\///')
-          # TAG=$(git ls-remote https://github.com/qbittorrent/qBittorrent.git HEAD | awk '{print $1}')
-          # Testing settings migration
-          TAG="09bd46d1fe767e7fbda118a270ed281f80adcf5f"
+          TAG=$(git ls-remote https://github.com/qbittorrent/qBittorrent.git HEAD | awk '{print $1}')
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Get latest Libtorrent v1
