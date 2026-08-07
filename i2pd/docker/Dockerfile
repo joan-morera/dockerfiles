@@ -63,6 +63,11 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     cd ../.. && \
     rm -rf mimalloc*
 
+# Local runtime patch: revert i2pd's IPv6 clearnet resolver so an IPv6 ULA
+# (fc00::/7) is not auto-selected as the published host. Applied at build time,
+# fails loudly if upstream drifts. Full analysis in ../PATCH-IPv6-ULA.md.
+COPY patch-ipv6-ula.sh /tmp/patch-ipv6-ula.sh
+
 # Download and build i2pd
 RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     export CXXFLAGS_ARCH_EXTRA="" && \
@@ -90,6 +95,7 @@ RUN export CXXFLAGS_ARCH_SPECIFIC="" && \
     echo "[BUILD] Extracting source..." && \
     tar xfz i2pd.tar.gz && \
     cd i2pd-$(echo $I2PD_VERSION | sed 's/v//') && \
+    sh /tmp/patch-ipv6-ula.sh libi2pd/util.cpp && \
     echo "[BUILD] Starting compilation with $(nproc) parallel jobs (this may take 5-15 minutes)..." && \
     # Build i2pd as a fully static binary against musl libc.
     # Alpine's musl supports complete static linking (including DNS/NSS), so the final binary

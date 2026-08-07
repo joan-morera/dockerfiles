@@ -35,6 +35,19 @@ jobs:
           echo "mimalloc=${MIMALLOC}" >> $GITHUB_OUTPUT
           echo "boost_pkg_version=${BOOST_PKG_VERSION}" >> $GITHUB_OUTPUT
 
+      - name: Verify upstream IPv6-ULA patch target
+        run: |
+          VERSION="${{ steps.get_versions.outputs.i2pd }}"
+          URL="https://github.com/PurpleI2P/i2pd/archive/refs/tags/${VERSION}.tar.gz"
+          curl -fsSL "$URL" -o /tmp/i2pd.tar.gz
+          tar xfz /tmp/i2pd.tar.gz
+          SRC=$(find . -name util.cpp -path '*libi2pd*' | head -n1)
+          if ! grep -qF 'return (addr[0] & 0xF0) == 0x20 || (addr[0] & 0xFC) == 0xFC; // 2000::/3 or FC00:/7' "$SRC"; then
+            echo "::error::The IPv6-ULA patch target line is missing or changed in i2pd ${VERSION}. Re-evaluate i2pd/PATCH-IPv6-ULA.md before building."
+            exit 1
+          fi
+          echo "OK: i2pd ${VERSION} still matches the IPv6-ULA patch target."
+
       - name: Check for library dependency versions (Alpine)
         id: get_pkgs
         run: |
